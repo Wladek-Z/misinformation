@@ -1,7 +1,7 @@
 import networkx as nx
 import argparse
 
-def gen_ER_model(N, p, filename):
+def gen_ER_model(N, p):
     """
     Generate a network using the Erdos-Renyi random graph model.
     
@@ -14,7 +14,7 @@ def gen_ER_model(N, p, filename):
     G = nx.erdos_renyi_graph(N, p)
 
     # Save to file
-    nx.write_pajek(G, filename)
+    nx.write_pajek(G, f'./graphs/pajek/ER/{N} {''.join(str(p).split('.'))}.net.gz')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -25,4 +25,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.ER:
-        gen_ER_model(args.N, args.p, args.f)
+        gen_ER_model(args.N, args.p)
