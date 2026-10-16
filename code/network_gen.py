@@ -14,12 +14,12 @@ def gen_ER_model(N, p, filename):
     G = nx.erdos_renyi_graph(N, p)
 
     # Save to file
-    nx.write_gml(G, filename)
+    nx.write_pajek(G, filename)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
-    parser.add_argument('-p', type=float, default=0.2, help='probability of connecting two random nodes')
+    parser.add_argument('-p', type=float, default=0.1, help='probability of connecting two random nodes')
     parser.add_argument('-f', type=str, help='filename for graph output')
     parser.add_argument('--ER', action='store_true', help='generate an ER random graph')
     args = parser.parse_args()
