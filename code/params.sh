@@ -1,11 +1,6 @@
 #!/bin/bash
+filename=$1
 
-for x in $(seq 0.25 0.25 4);
-do
-    for y in $(seq 0.5 0.5 8);
-    do
-        echo "$x" >> x.txt
-        echo "$y" >> y.txt
-    
-    done
+for x in $(seq 0.001 0.001 0.02); do
+    echo "$x" >> "$HOME/repos/misinformation/code/parameter files/${filename}"
 done

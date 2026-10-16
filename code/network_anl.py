@@ -16,6 +16,8 @@ def average_degree(filename):
 
     print(avg_k)
 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', type=str, help='filename for graph output')
