@@ -16,11 +16,23 @@ def average_degree(filename):
 
     print(avg_k)
 
-
+def analyse_all(N, param_file, graph_model):
+    """
+    Read in each graph from a parameter file and perform analysis over all
+    relevant global metrics. Save results to file.
+    
+    Arguments:
+        N: network size
+        param_file: file containing graph parameters
+        graph_model: network model to analyse
+    """
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', type=str, help='filename for graph output')
+    parser.add_argument('-f', type=str, help='filename for graph input')
+    parser.add_argument('-out', type=str, help='filename for analysis output')
+    parser.add_argument('-m', type=str, choices=['ER'], help='Choose network model to analyse')
+    parser.add_argument('-p', type=str, help='file containing parameter list(s)')
     parser.add_argument('--avgdeg', action='store_true', help='Output the average degree of a graph')
     args = parser.parse_args()
 
