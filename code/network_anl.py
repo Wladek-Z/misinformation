@@ -52,9 +52,12 @@ def analyse_all(param_file, output, N, model):
         deg.append(average_degree(G))
         acc.append(nx.average_clustering(G))
         gcc.append(nx.transitivity(G))
+        ass.append(nx.degree_assortativity_coefficient(G))
+
+        # check for single connected component
+        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         apl.append(nx.average_shortest_path_length(G))
         ndm.append(nx.diameter(G))
-        ass.append(nx.degree_assortativity_coefficient(G))
 
     # construct dataframe
     data = {
