@@ -46,7 +46,7 @@ def gen_graph_from_1d_list(N, filename, n, model):
 
             if not os.path.exists(output):
                 os.makedirs(output)
-                
+
             nx.write_pajek(G, f'{output}/{N} {''.join(p.split('.'))}.net.gz')
 
 if __name__ == "__main__":
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', type=str, help='file containing graph parameter input')
     parser.add_argument('--ER', action='store_true', help='generate an ER random graph')
     parser.add_argument('--list', action='store_true', help='generate graphs from 1D parameter list')
-    parser.add_argument('-m', type=str, choices=['ER'], help='Choose network model to analyse')
+    parser.add_argument('-m', type=str, choices=['ER'], help='Choose network model to generate')
     args = parser.parse_args()
 
     if args.ER:

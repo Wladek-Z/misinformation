@@ -39,6 +39,7 @@ def analyse_all(param_file, output, N, model):
     apl = []    # average path length
     ndm = []    # diameter
     ass = []    # degree assortativity
+    ncc = []    # number of connected components
 
     # iterate over each parameter
     for p in params:
@@ -53,11 +54,16 @@ def analyse_all(param_file, output, N, model):
         acc.append(nx.average_clustering(G))
         gcc.append(nx.transitivity(G))
         ass.append(nx.degree_assortativity_coefficient(G))
+        ncc_current = nx.number_connected_components(G)
+        ncc.append(ncc_current)
 
-        # check for single connected component
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        apl.append(nx.average_shortest_path_length(G))
-        ndm.append(nx.diameter(G))
+        # check for disconnected components
+        if ncc_current == 1:
+            apl.append(nx.average_shortest_path_length(G))
+            ndm.append(nx.diameter(G))
+        else:
+            apl.append(None)
+            ndm.append(None)
 
     # construct dataframe
     data = {
@@ -67,7 +73,8 @@ def analyse_all(param_file, output, N, model):
         'transitivity': gcc,
         'avg_path_length': apl,
         'diameter': ndm,
-        'k_assortativity': ass
+        'k_assortativity': ass,
+        'n_components': ncc
     }
     df = pd.DataFrame(data)
     df.to_csv(output)
