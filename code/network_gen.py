@@ -3,30 +3,45 @@ import argparse
 import numpy as np
 import os
 
-def gen_ER_model(N, p):
+def gen_model(N, p, model):
     """
-    Generate a network using the Erdos-Renyi random graph model.
+    Generate a network using a single-parameter graph model.
     
-    Arguments:
-        N: network size
-        p: probability of connecting two randomly chosen nodes
+    Parameters
+    ----------
+        N: int
+            network size
+        p: float
+            input parameter for a single-parameter graph
+        model: str
+            which graph model to use
     """
-    # generate the network
-    G = nx.erdos_renyi_graph(N, p)
+    # choose graph model
+    if model == 'ER':
+        G = nx.erdos_renyi_graph(N, p)
+    elif model == 'BA':
+        p = int(p)
+        g = nx.complete_graph(p)
+        G = nx.barabasi_albert_graph(N, p, initial_graph=g)
 
     # save to file
-    nx.write_pajek(G, f'./graphs/pajek/ER/{N} {''.join(str(p).split('.'))}.net.gz')
+    nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {''.join(str(p).split('.'))}.net.gz')
 
 def gen_graph_from_1d_list(N, filename, n, model):
     """
     Generate a series of network models from a 1-dimensional list of 
     graph parameter values.
     
-    Arguments:
-        N: network size
-        filename: file with parameter values
-        n: number of networks to produce for each parameters
-        model: network model to generate
+    Parameters
+    ----------
+        N: int
+            network size
+        filename: str
+            file with parameter values
+        n: str
+            number of networks to produce for each parameters
+        model: str
+            network model to generate
     """
     # load in parameters
     params = np.loadtxt(filename, dtype=str)
@@ -36,17 +51,14 @@ def gen_graph_from_1d_list(N, filename, n, model):
         print(p)
 
         # generate the graph for each point in parameter space n times
-        for i in range(1, n+1):
+        for i in range(n):
             # generate the network
             if model == 'ER':
                 G = nx.erdos_renyi_graph(N, float(p))
 
             # save to file
             output = f'./graphs/pajek/{model}/{i}'
-
-            if not os.path.exists(output):
-                os.makedirs(output)
-
+            os.makedirs(output, exist_ok=True)
             nx.write_pajek(G, f'{output}/{N} {''.join(p.split('.'))}.net.gz')
 
 if __name__ == "__main__":
@@ -55,12 +67,12 @@ if __name__ == "__main__":
     parser.add_argument('-n', type=int, default=1, help='number of graphs to produce per parameter point')
     parser.add_argument('-p', type=float, default=0.1, help='probability of connecting two random nodes')
     parser.add_argument('-f', type=str, help='file containing graph parameter input')
-    parser.add_argument('--ER', action='store_true', help='generate an ER random graph')
+    parser.add_argument('--gen', action='store_true', help='generate a graph')
     parser.add_argument('--list', action='store_true', help='generate graphs from 1D parameter list')
     parser.add_argument('-m', type=str, choices=['ER'], help='Choose network model to generate')
     args = parser.parse_args()
 
-    if args.ER:
-        gen_ER_model(args.N, args.p)
+    if args.gen:
+        gen_model(args.N, args.p)
     elif args.list:
         gen_graph_from_1d_list(args.N, args.f, args.n, args.m)
