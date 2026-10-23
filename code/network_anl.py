@@ -15,13 +15,11 @@ def average_degree(G):
 
     Returns
     -------
-        avg_k: float
+        float
             the average degree of the graph
     """
     # calculate and output average degree
-    avg_k = sum([d for (n, d) in nx.degree(G)]) / float(G.number_of_nodes())
-
-    return avg_k
+    return sum([d for (n, d) in nx.degree(G)]) / float(G.number_of_nodes())
 
 def all_metrics(n, p, N, model):
     """
@@ -167,7 +165,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', type=str, help='filename for graph input')
     parser.add_argument('-out', type=str, help='filename for analysis output')
-    parser.add_argument('-m', type=str, choices=['ER'], help='Choose network model to analyse')
+    parser.add_argument('-m', type=str, choices=['ER', 'BA'], help='Choose network model to analyse')
     parser.add_argument('-p', type=str, help='input parameter value/file')
     parser.add_argument('-N', type=str, default='5000', help='network size')
     parser.add_argument('-n', type=int, default=1, help='number of graphs per parameter point')
