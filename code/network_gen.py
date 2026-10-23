@@ -44,9 +44,13 @@ def gen_graph_samples(N, p, n, model):
     """
     # generate the graph for each point in parameter space n times
     for i in range(n):
-        # generate the network
+        # generate ER network
         if model == 'ER':
             G = nx.erdos_renyi_graph(N, float(p))
+        elif model == 'BA':
+            # generate BA network on initial complete graph
+            g = nx.complete_graph(int(p))
+            G = nx.barabasi_albert_graph(N, int(p), initial_graph=g)
 
         # save to file
         output = f'./graphs/pajek/{model}/{i}'
