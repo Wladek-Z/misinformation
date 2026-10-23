@@ -10,7 +10,7 @@
 
 N=5000
 
-x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "code/parameter files/BA m.txt")
+x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/BA m.txt")
 
 echo "Task $SLURM_ARRAY_TASK_ID: p=$x"
 
