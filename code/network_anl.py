@@ -10,7 +10,7 @@ def average_degree(G):
 
     Parameters
     ----------
-        G: Networkx graph
+        G: NetworkX graph
             the network as a networkx graph
 
     Returns
