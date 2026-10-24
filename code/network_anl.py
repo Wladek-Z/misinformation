@@ -3,10 +3,11 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import os
+from scipy.sparse.linalg import eigsh
 
 def average_degree(G):
     """
-    Return the average degree of a given graph.
+    Return the average degree and Fano factor of a given graph.
 
     Parameters
     ----------
@@ -15,11 +16,19 @@ def average_degree(G):
 
     Returns
     -------
-        float
-            the average degree of the graph
+        mean_degree: float
+            the mean node degree of the graph
+        fano_factor: float
+            the variance of degree divided by the mean degree of the graph
     """
-    # calculate and output average degree
-    return sum([d for (n, d) in nx.degree(G)]) / float(G.number_of_nodes())
+    degrees = np.fromiter((degree for _, degree in nx.degree(G)), dtype=float)
+    mean_degree = degrees.mean() if degrees.size else np.nan
+    fano_factor = (
+        degrees.var() / mean_degree
+        if degrees.size and mean_degree != 0
+        else np.nan
+    )
+    return mean_degree, fano_factor
 
 def all_metrics(n, p, N, model):
     """
@@ -41,11 +50,13 @@ def all_metrics(n, p, N, model):
     properties = [
         'avg_k',
         'avg_cc',
-        'transitivity'
+        'transitivity',
         'avg_path_length',
         'diameter',
         'k_assortativity',
         'n_components',
+        'F_factor',
+        'spectral_r'
     ]
 
     # initialise data structure
@@ -53,6 +64,7 @@ def all_metrics(n, p, N, model):
 
     # iterate over each graph
     for i in range(n):
+        print(i)
         # resolve filepath to graph
         f = f'./graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))}.net.gz'
 
@@ -61,12 +73,22 @@ def all_metrics(n, p, N, model):
 
         # calculate metrics
         ncc_current = nx.number_connected_components(G)
+        avg_k, fano_factor = average_degree(G)
+        adjacency = nx.to_scipy_sparse_array(G, dtype=float)
+        spectral_radius = eigsh(
+            adjacency,
+            k=1,
+            which='LM',
+            return_eigenvectors=False
+        )[0]
         values = {
-            'avg_k': average_degree(G),
+            'avg_k': avg_k,
             'avg_cc': nx.average_clustering(G),
             'transitivity': nx.transitivity(G),
             'k_assortativity': nx.degree_assortativity_coefficient(G),
             'n_components': ncc_current,
+            'F_factor': fano_factor,
+            'spectral_r': spectral_radius
         }
 
         # Leave path-related metrics empty for disconnected graphs.
@@ -87,93 +109,6 @@ def all_metrics(n, p, N, model):
     output = f'graphs/data/{model}/uncombined'
     os.makedirs(output, exist_ok=True)
     df.to_csv(f'{output}/{N} {''.join(p.split('.'))}.txt')
-
-def add_connectivity(param_file, model, N):
-    """
-    Calculate node connectivity for every sampled graph and add it to the
-    existing uncombined and combined results.
-
-    Parameters
-    ----------
-        param_file: str
-            path to file containing input parameters
-        model: str
-            network model to analyse
-        N: str
-            network size
-    """
-    p_values = np.loadtxt(param_file, dtype=str)
-    p_values = np.atleast_1d(p_values)
-    graph_root = f'./graphs/pajek/{model}'
-    uncombined_root = f'./graphs/data/{model}/uncombined'
-    combined_file = f'./graphs/data/{model}/combined/{N}.txt'
-
-    connectivity_means = []
-    connectivity_sems = []
-
-    for p in p_values:
-        parameter = ''.join(p.split('.'))
-        graph_paths = []
-
-        for sample in sorted(os.listdir(graph_root), key=lambda name: int(name) if name.isdigit() else -1):
-            sample_path = os.path.join(graph_root, sample)
-            if not sample.isdigit() or not os.path.isdir(sample_path):
-                continue
-
-            graph_path = os.path.join(sample_path, f'{N} {parameter}.net.gz')
-            if os.path.isfile(graph_path):
-                graph_paths.append(graph_path)
-
-        if not graph_paths:
-            raise FileNotFoundError(
-                f'No sampled graphs found for parameter {p} in {graph_root}'
-            )
-
-        connectivity = []
-        for graph_path in graph_paths:
-            graph = nx.Graph(nx.read_pajek(graph_path))
-            connectivity.append(nx.node_connectivity(graph))
-
-        uncombined_file = os.path.join(
-            uncombined_root, f'{N} {parameter}.txt'
-        )
-        if not os.path.isfile(uncombined_file):
-            raise FileNotFoundError(
-                f'Uncombined data file not found: {uncombined_file}'
-            )
-
-        uncombined = pd.read_csv(uncombined_file)
-        if len(uncombined) != len(connectivity):
-            raise ValueError(
-                f'{uncombined_file} has {len(uncombined)} rows, but '
-                f'{len(connectivity)} sampled graphs were found'
-            )
-
-        uncombined['connectivity'] = connectivity
-        uncombined.to_csv(uncombined_file, index=False)
-
-        values = pd.Series(connectivity, dtype=float)
-        connectivity_means.append(values.mean())
-        connectivity_sems.append(values.sem())
-
-    if not os.path.isfile(combined_file):
-        raise FileNotFoundError(f'Combined data file not found: {combined_file}')
-
-    combined = pd.read_csv(combined_file)
-    if len(combined) != len(p_values):
-        raise ValueError(
-            f'{combined_file} has {len(combined)} rows, but '
-            f'{len(p_values)} parameters were supplied'
-        )
-
-    for column in ('connectivity_mean', 'connectivity_sem'):
-        if column in combined:
-            combined = combined.drop(columns=column)
-
-    combined['connectivity_mean'] = connectivity_means
-    combined['connectivity_sem'] = connectivity_sems
-    combined.to_csv(combined_file, index=False)
-
 
 def analyse_means(param_file, model, N):
     """
@@ -202,6 +137,8 @@ def analyse_means(param_file, model, N):
         'diameter',
         'k_assortativity',
         'n_components',
+        'F_factor',
+        'spectral_r'
     ]
 
     # initialise data structure
@@ -259,15 +196,14 @@ if __name__ == "__main__":
     parser.add_argument('--avgdeg', action='store_true', help='output the average degree of a graph')
     parser.add_argument('--all', action='store_true', help='analyse all properties for an input parameter point')
     parser.add_argument('--mean', action='store_true', help='combine sampled graph statistics')
-    parser.add_argument('--connectivity', action='store_true', help='add node connectivity to saved statistics')
     args = parser.parse_args()
 
     if args.avgdeg:
         G = nx.Graph(nx.read_pajek(args.f))
-        print(average_degree(G))
+        average, fano_factor = average_degree(G)
+        print(f'average degree: {average}')
+        print(f'Fano factor: {fano_factor}')
     elif args.all:
         all_metrics(args.n, args.p, args.N, args.m)
     elif args.mean:
         analyse_means(args.p, args.m, args.N)
-    elif args.connectivity:
-        add_connectivity(args.p, args.m, args.N)

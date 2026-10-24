@@ -9,7 +9,7 @@
 
 N=5000
 
-source activate base
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate mphys
 
 python ./code/network_anl.py -N $N -n 10 -p 0.020 -m ER --all

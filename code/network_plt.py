@@ -67,10 +67,14 @@ def plot_all_1d(model, N):
         r'average degree, $\langle k \rangle$',
         r'average clustering coefficient, $\langle C \rangle$',
         'transitivity, $T$',
+        'connectivity, $K$',
         'average path length, $l$',
         'diameter, $d$',
         'degree assortativity, $r$',
-        '# disconnected components, $n_c$'
+        '# disconnected components, $n_c$',
+        'degree Fano factor, $F$',
+        r'algebraic connectivity, $a$',
+        r'spectral radius, $\rho$'
     ]
 
     # iterate over each metric in the dataframe

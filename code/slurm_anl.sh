@@ -9,7 +9,7 @@
 
 N=5000
 
-source activate base
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate mphys
 
-python ./code/network_anl.py -N $N -p "parameter files/BA m.txt" -m BA --mean
+python ./code/network_anl.py -N $N -p "parameter files/ER p.txt" -m ER --mean
