@@ -56,6 +56,7 @@ def all_metrics(n, p, N, model):
         'k_assortativity',
         'n_components',
         'F_factor',
+        'a_connectivity',
         'spectral_r'
     ]
 
@@ -71,16 +72,28 @@ def all_metrics(n, p, N, model):
         # load in graph
         G = nx.Graph(nx.read_pajek(f))
 
-        # calculate metrics
+        # calculate number of connected components
         ncc_current = nx.number_connected_components(G)
+        # calculate average degree and Fano factor
         avg_k, fano_factor = average_degree(G)
-        adjacency = nx.to_scipy_sparse_array(G, dtype=float)
+        # calculate spectral radius from adjacency matrix
+        A = nx.to_scipy_sparse_array(G, dtype=float)
         spectral_radius = eigsh(
-            adjacency,
+            A,
             k=1,
             which='LM',
             return_eigenvectors=False
         )[0]
+        # calculate algebraic connectivity from Laplacian matrix
+        L = nx.laplacian_matrix(G).astype(float)
+        eigenvalues = eigsh(
+            L,
+            k=2,
+            which='SA',
+            return_eigenvectors=False
+        )
+        a_connectivity = np.sort(eigenvalues)[1]
+        # calculate remaining metrics
         values = {
             'avg_k': avg_k,
             'avg_cc': nx.average_clustering(G),
@@ -88,6 +101,7 @@ def all_metrics(n, p, N, model):
             'k_assortativity': nx.degree_assortativity_coefficient(G),
             'n_components': ncc_current,
             'F_factor': fano_factor,
+            'a_connectivity': a_connectivity,
             'spectral_r': spectral_radius
         }
 
@@ -138,6 +152,7 @@ def analyse_means(param_file, model, N):
         'k_assortativity',
         'n_components',
         'F_factor',
+        'a_connectivity',
         'spectral_r'
     ]
 

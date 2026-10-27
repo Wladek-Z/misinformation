@@ -3,6 +3,7 @@ import scienceplots
 import pandas as pd
 import argparse
 import os
+import numpy as np
 
 plt.style.use('science')
 plt.rcParams['text.usetex'] = False
@@ -34,14 +35,14 @@ def plot_y_vs_x_with_errors(x, y, y_err, xlabel, ylabel):
     """
     fig, ax = plt.subplots(1, 1, layout='constrained', figsize=(8, 6))
 
-    ax.errorbar(x, y, yerr=y_err, color='blue', label='numerical')
+    ax.errorbar(x, y, yerr=y_err, fmt='o-b', label='numerical')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.5)
 
     return fig, ax
 
-def plot_all_1d(model, N):
+def plot_all_1d(model, N, n):
     """
     Plot all global metrics against input parameter for a given network model
     at a given network size. Function for network models with a 1-dimensional
@@ -53,6 +54,8 @@ def plot_all_1d(model, N):
             which network model to plot results for
         N: int
             size of network model used in results
+        n: int
+            number of graphs used to calculate mean
     """
     # load in network data
     df = pd.read_csv(f'graphs/data/{model}/combined/{N}.txt')
@@ -67,13 +70,12 @@ def plot_all_1d(model, N):
         r'average degree, $\langle k \rangle$',
         r'average clustering coefficient, $\langle C \rangle$',
         'transitivity, $T$',
-        'connectivity, $K$',
         'average path length, $l$',
         'diameter, $d$',
         'degree assortativity, $r$',
-        '# disconnected components, $n_c$',
+        '# connected components, $n_c$',
         'degree Fano factor, $F$',
-        r'algebraic connectivity, $a$',
+        'algebraic connectivity $a$',
         r'spectral radius, $\rho$'
     ]
 
@@ -102,12 +104,23 @@ def plot_all_1d(model, N):
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
 
+    # also plot standard deviation of degree assortativity
+    k_ass_std = df['k_assortativity_sem'] * np.sqrt(n)
+    ylabel = r'standard deviation of $r$, $\sigma_r$'
+    fig, ax = plot_y_vs_x_with_errors(df['p'], k_ass_std, 0, xlabel, ylabel)
+    # define filepath and save figure
+    filename = f'./graphs/plots/{model}'
+    os.makedirs(filename, exist_ok=True)
+    plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
+    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
     parser.add_argument('--all', action='store_true', help='plot all metrics for a 1D parameter space')
     parser.add_argument('-m', type=str, choices=['ER', 'BA'], help='Choose network model to generate')
+    parser.add_argument('-n', type=int, default=1, help='number of graphs per parameter point')
     args = parser.parse_args()
 
     if args.all:
-        plot_all_1d(args.m, args.N)
+        plot_all_1d(args.m, args.N, args.n)

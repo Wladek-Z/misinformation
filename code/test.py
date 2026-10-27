@@ -1,20 +1,30 @@
 from time import perf_counter
 import networkx as nx
 from scipy.sparse.linalg import eigsh
+import numpy as np
 
-G = nx.erdos_renyi_graph(5000, 0.02)
+g = nx.complete_graph(50)
+G = nx.barabasi_albert_graph(5000, 50, initial_graph=g)
 start = perf_counter()
-adjacency = nx.to_scipy_sparse_array(G, dtype=float)
-spectral_radius = eigsh(
-    adjacency,
-    k=1,
-    which='LM',
+
+
+laplacian = nx.laplacian_matrix(G).astype(float)
+
+eigenvalues = eigsh(
+    laplacian,
+    k=2,
+    which='SA',
     return_eigenvectors=False
-)[0]
-print(f"spectral radius time: {perf_counter() - start}")
-start = perf_counter()
+)
 
-a_connectivity = nx.algebraic_connectivity(G)
+a_connectivity = np.sort(eigenvalues)[1]
 
 print(f"algebraic connectivity time: {perf_counter() - start}")
+print(f"algebraic connectivity = {a_connectivity}")
 
+
+start = perf_counter()
+
+a_con = nx.algebraic_connectivity(G)
+
+print(f"nx algebraic connectivity time: {perf_counter() - start}")
