@@ -48,7 +48,7 @@ def generate_dcsbm_ba(N=5000, K=4, m=5, mu=0.2):
             else:
                 probs[r, s] = (mu * D_r[r]) / (K - 1.0)
                 
-    # 5. Generate the graph using graph-tool's DCSBM generator
+    # generate the graph using graph-tool's DCSBM generator
     g = gt.generate_sbm(
         b=b,
         probs=probs,
@@ -59,5 +59,5 @@ def generate_dcsbm_ba(N=5000, K=4, m=5, mu=0.2):
     return g, b
 
 # Example usage:
-g, block_assignments = generate_dcsbm_ba(N=5000, K=4, m=10, mu=0.2)
+g, block_assignments = generate_dcsbm_ba(N=5000, K=20, m=50, mu=0.3)
 print(f"Generated DCSBM graph with {g.num_vertices()} nodes and {g.num_edges()} edges.")
