@@ -3,15 +3,15 @@ import pandas as pd
 import argparse
 import os
 import numpy as np
-import scienceplots
+#import scienceplots
 
-plt.style.use('science')
-plt.rcParams['text.usetex'] = False
+#plt.style.use('science')
+#plt.rcParams['text.usetex'] = False
 
-#handle graph formatting and style
-#plt.style.use('shendrukGroupStyle')
-#import shendrukGroupFormat as ed
-#MYLW=1.0 #line width
+from pathlib import Path
+
+STYLE_FILE = Path(__file__).with_name("shendrukGroupStyle.mplstyle")
+plt.style.use(str(STYLE_FILE))
 
 def plot_y_vs_x_with_errors(x, y, y_err, xlabel, ylabel):
     """
@@ -38,9 +38,9 @@ def plot_y_vs_x_with_errors(x, y, y_err, xlabel, ylabel):
         ax: matplotlib Axes
             the axis of the figure
     """
-    fig, ax = plt.subplots(1, 1, layout='constrained', figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, layout='constrained')
 
-    ax.errorbar(x, y, yerr=y_err, fmt='o-b', label='numerical')
+    ax.errorbar(x, y, yerr=y_err, marker='o', linestyle='-', color=[172./255., 0, 64./255.], label='numerical')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.5)
@@ -82,14 +82,14 @@ def plot_2_in_1_y_vs_x_with_errors(x1, y1, x_err1, y_err1, x2, y2, x_err2, y_err
         ax: matplotlib Axes
             the axis of the figure
     """
-    fig, ax = plt.subplots(1, 1, layout='constrained', figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, layout='constrained')
 
-    ax.errorbar(x1, y1, xerr=x_err1, yerr=y_err1, fmt='o-b', label='ER')
-    ax.errorbar(x2, y2, xerr=x_err2, yerr=y_err2, fmt='o-g', label='BA')
+    ax.errorbar(x1, y1, xerr=x_err1, yerr=y_err1, marker='o', linestyle='-', color=[172./255., 0, 64./255.], label='ER')
+    ax.errorbar(x2, y2, xerr=x_err2, yerr=y_err2, marker='o', linestyle='-', color=[0, 80./255., 114./255.], label='BA')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.5)
-    ax.legend(loc='upper center')
+    ax.legend()
 
     return fig, ax
 
@@ -124,9 +124,9 @@ def plot_all_1d(model, N, n):
         'average path length, $l$',
         'diameter, $d$',
         'degree assortativity, $r$',
-        '# connected components, $n_c$',
+        r'\# connected components, $n_c$',
         'degree Fano factor, $F$',
-        'algebraic connectivity $a$',
+        'algebraic connectivity, $a$',
         r'spectral radius, $\rho$'
     ]
 
@@ -139,15 +139,15 @@ def plot_all_1d(model, N, n):
         if model == 'ER':
             if metric == 'avg_k_mean':
                 y_analytical = df['p'] * N
-                ax.plot(df['p'], y_analytical, color='red', linestyle='--', label='analytical')
+                ax.plot(df['p'], y_analytical, color=[205./255., 90./255., 19./255.], linestyle='--', label='analytical')
                 ax.legend(loc='upper center')
             elif metric == 'avg_cc_mean':
                 y_analytical = df['p']
-                ax.plot(df['p'], y_analytical, color='red', linestyle='--', label='analytical')
+                ax.plot(df['p'], y_analytical, color=[205./255., 90./255., 19./255.], linestyle='--', label='analytical')
                 ax.legend(loc='upper center')
         elif model == 'BA' and metric == 'avg_k_mean':
             y_analytical = (2 * N - df['p'] - 1) * df['p'] / N
-            ax.plot(df['p'], y_analytical, color='red', linestyle='--', label='analytical')
+            ax.plot(df['p'], y_analytical, color=[205./255., 90./255., 19./255.], linestyle='--', label='analytical')
             ax.legend(loc='upper center')
 
         # add zero line to degree assortativity plot
@@ -193,9 +193,9 @@ def plot_ER_and_BA(N, n):
         'average path length, $l$',
         'diameter, $d$',
         'degree assortativity, $r$',
-        '# connected components, $n_c$',
+        r'\# connected components, $n_c$',
         'degree Fano factor, $F$',
-        'algebraic connectivity $a$',
+        'algebraic connectivity, $a$',
         r'spectral radius, $\rho$'
     ]
 
