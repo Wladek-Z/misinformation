@@ -30,7 +30,9 @@ def gen_model(N, p, model):
 
 def generate_dcsbm_ba(N, K, m, mu):
     """
-    Generates a DCSBM graph with a Barabási-Albert degree sequence.
+    Generates a DCSBM graph with a Barabási-Albert degree sequence using graph-tool,
+    then converts to a NetworkX graph. Also performs a rewiring algorithm to remove
+    multi-edges and self-edges while preserving group membership and degree sequence.
     
     Parameters
     ----------
@@ -45,46 +47,61 @@ def generate_dcsbm_ba(N, K, m, mu):
         
     Returns
     -------
-    g: graph_tool Graph
-        the generated degree-corrected SBM graph.
-    b: numpy ndarray
-        array of length N containing block assignments (0 to K-1).
+    G: networkx Graph
+        the generated degree-corrected SBM graph with group assignment as
+        node attributes
     """
     # resolve filepath to corresponding BA network
     f = f'graphs/pajek/BA/0/{N} {m}.net.gz'
     # extract the Barabási-Albert degree sequence
     ba_graph = nx.Graph(nx.read_pajek(f))
     degs = np.array([d for _, d in ba_graph.degree()], dtype=np.int32)
+    D = degs.sum()
     
     # assign nodes into K equal-sized groups
     # shuffle to ensure high-degree hub nodes are distributed evenly across blocks
     b = np.repeat(np.arange(K), int(np.ceil(N / K)))[:N]
     np.random.shuffle(b)
     
-    # calculate actual total degree volume D_r for each block
-    D_r = np.array([degs[b == r].sum() for r in range(K)], dtype=np.float64)
-    
-    # construct the expected edge-count matrix probs (E_rs)
-    # for undirected graphs in graph-tool:
-    # - probs[r, r] is internal edges in block r: (1 - mu) * D_r / 2
-    # - probs[r, s] is external edges between r and s: mu * D_r / (K - 1)
-    probs = np.zeros((K, K), dtype=np.float64)
-    for r in range(K):
-        for s in range(K):
-            if r == s:
-                probs[r, r] = (1.0 - mu) * D_r[r] / 2.0
-            else:
-                probs[r, s] = (mu * D_r[r]) / (K - 1.0)
+    # construct the expected edge-count matrix by assuming constant intrablock 
+    # connections and interblock connections
+    probs = np.full((K, K), (mu * D) / (K * (K - 1.0)))
+    np.fill_diagonal(probs, ((1.0 - mu) * D) / K)
                 
     # generate the graph using graph-tool's DCSBM generator
     g = gt.generate_sbm(
         b=b,
         probs=probs,
         out_degs=degs,
-        directed=False
+        directed=False,
+        micro_degs=False,
+        micro_ers=False
+    )
+
+    # convert numpy block array 'b' into a graph-tool Vertex Property Map
+    b_prop = g.new_vertex_property("int")
+    b_prop.a = b
+
+    # run random_rewire with the correct parameter names
+    swaps = gt.random_rewire(
+        g,
+        model='constrained-configuration',    # Preserves exact in/out-degree sequences
+        n_iter=10,                            # Number of full passes over the edge list
+        edge_sweep=True,                      # Iterates through edges sequentially
+        block_membership=b_prop,              # Restricts edge swaps to matching block pairs
+        self_loops=False,                     # Rejects proposed swaps that create self-loops
+        parallel_edges=False                  # Rejects proposed swaps that create parallel edges
+    )
+
+    # convert to networkx graph
+    G = graph_tool_to_networkx(g)
+    nx.set_node_attributes(
+        G,
+        {node: int(b[node]) for node in G.nodes},
+        name="block"
     )
     
-    return g, b
+    return G
 
 def gen_graph_samples(N, p, n, model):
     """
@@ -136,15 +153,7 @@ def gen_dcsbm_samples(N, K, m, mu, n):
     # generate n graphs for each point in parameter space
     for i in range(n):
         # generate DCSBM network
-        g, b = generate_dcsbm_ba(N, K, m, float(mu))
-        # convert graph-tool to networkx
-        G = graph_tool_to_networkx(g)
-        # set block assignments as node attributes
-        nx.set_node_attributes(
-            G,
-            {node: int(b[node]) for node in G.nodes},
-            name="block"
-        )
+        G = generate_dcsbm_ba(N, K, m, float(mu))
         # save graph to file
         output = f'./graphs/pajek/DCSB/{i}'
         os.makedirs(output, exist_ok=True)
