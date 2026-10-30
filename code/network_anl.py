@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 from scipy.sparse.linalg import eigsh
+from networkx.algorithms.community import modularity
 
 def average_degree(G):
     """
@@ -30,9 +31,9 @@ def average_degree(G):
     )
     return mean_degree, fano_factor
 
-def all_metrics(n, p, N, model):
+def all_metrics(n, p, N, model, q=None, K=None):
     """
-    Read in graphs for a single parameter point and perform analysis over all relevant
+    Read in graphs for a given parameter point and perform analysis over all relevant
     global metrics. Save results to file.
     
     Parameters
@@ -40,11 +41,15 @@ def all_metrics(n, p, N, model):
         n: int
             number of sampled graphs per parameter point
         p: str
-            input parameter point
+            first input parameter point
         N: str
             network size
         model: str
             relevant network model
+        q: str
+            second input parameter point
+        K: str
+            number of groups
     """
     # initialise property arrays
     properties = [
@@ -59,6 +64,9 @@ def all_metrics(n, p, N, model):
         'a_connectivity',
         'spectral_r'
     ]
+    # add modularity if working with DCSBM
+    if model == 'DCSB':
+        properties.append('modularity')
 
     # initialise data structure
     data = {property_name: [] for property_name in properties}
@@ -67,7 +75,10 @@ def all_metrics(n, p, N, model):
     for i in range(n):
         print(i)
         # resolve filepath to graph
-        f = f'./graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))}.net.gz'
+        if model == 'DCSB':
+            f = f'./graphs/pajek/{model}/{i}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
+        else:
+            f = f'./graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))}.net.gz'
 
         # load in graph
         G = nx.Graph(nx.read_pajek(f))
@@ -112,6 +123,15 @@ def all_metrics(n, p, N, model):
         else:
             values['avg_path_length'] = None
             values['diameter'] = None
+
+        # calculate modularity for DCSBM only
+        if model == 'DCSB':
+            communities = [
+                {node for node, data in G.nodes(data=True)
+                if data["block"] == block_id}
+                for block_id in sorted(set(np.arange(K)))
+            ]
+            values['modularity'] = modularity(G, communities)
 
         for property_name in properties:
             data[property_name].append(values[property_name])
@@ -199,13 +219,106 @@ def analyse_means(param_file, model, N):
     os.makedirs(output, exist_ok=True)
     df.to_csv(f'{output}/{N}.txt', index=False)
 
+def analyse_means_2d(param_file_1, param_file_2, model, N, K=None):
+    """
+    Combine the statistics for the individually sampled graphs in a 2-dimensional
+    parameter space to obtain mean global properties with errors.
+
+    Parameters
+    ----------
+        param_file_1: str
+            path to file containing primary input parameters
+        param_file_1: str
+            path to file containing secondary input parameters
+        model: str
+            network model to analyse
+        N: str
+            network size
+        K: str
+            number of communities, if applicable
+    """
+    # read in parameters
+    p_values = np.loadtxt(param_file_1, dtype=str)
+    p_values = np.atleast_1d(p_values)
+    q_values = np.loadtxt(param_file_2, dtype=str)
+    q_values = np.atleast_1d(q_values)
+
+    # initialise property arrays
+    properties = [
+        'avg_k',
+        'avg_cc',
+        'transitivity',
+        'avg_path_length',
+        'diameter',
+        'k_assortativity',
+        'n_components',
+        'F_factor',
+        'a_connectivity',
+        'spectral_r'
+    ]
+    # add modularity for DCSBM
+    if model == 'DCSB':
+        properties.append('modularity')
+
+    # initialise data structure
+    data = {
+        'p': [],
+        'q': []
+    }
+
+    # add data columns for each property
+    for property_name in properties:
+        data[f'{property_name}_mean'] = []
+        data[f'{property_name}_sem'] = []
+
+    # iterate over each parameter point in 2 dimensions
+    for p in p_values:
+        for q in q_values:
+            # print current parameter point
+            print(p, q)
+
+            # resolve filepath to graph
+            if model == 'DCSB':
+                f = f'./graphs/data/{model}/uncombined/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.txt'
+
+            # read in data
+            df = pd.read_csv(f)
+
+            # add parameter values to data
+            data['p'].append(float(p))
+            data['q'].append(float(q))
+
+            # iterate over each measured property
+            for property_name in properties:
+                # set missing elements to NaNs
+                values = pd.to_numeric(df[property_name], errors='coerce')
+
+                # a missing sample makes this metric unavailable for this p value
+                if values.isna().any():
+                    data[f'{property_name}_mean'].append(None)
+                    data[f'{property_name}_sem'].append(None)
+                    continue
+
+                data[f'{property_name}_mean'].append(values.mean())
+                data[f'{property_name}_sem'].append(values.sem())
+
+    # construct dataframe
+    df = pd.DataFrame(data)
+
+    # save to file
+    output = f'./graphs/data/{model}/combined'
+    os.makedirs(output, exist_ok=True)
+    if model == 'DCSB':
+        df.to_csv(f'{output}/{N} {K}.txt', index=False)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', type=str, help='filename for graph input')
     parser.add_argument('-out', type=str, help='filename for analysis output')
     parser.add_argument('-m', type=str, choices=['ER', 'BA'], help='Choose network model to analyse')
-    parser.add_argument('-p', type=str, help='input parameter value/file')
+    parser.add_argument('-p', type=str, help='primary input parameter value/file')
+    parser.add_argument('-q', type=str, help='secondary input parameter value/file')
     parser.add_argument('-N', type=str, default='5000', help='network size')
     parser.add_argument('-n', type=int, default=1, help='number of graphs per parameter point')
     parser.add_argument('--avgdeg', action='store_true', help='output the average degree of a graph')

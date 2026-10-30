@@ -1,11 +1,11 @@
 #!/bin/bash
 
-for x in $(seq 0.25 0.25 4);
+for x in $(seq 5 5 50);
 do
-    for y in $(seq 0.5 0.5 8);
+    for y in $(seq 0.01 0.09 0.82);
     do
-        echo "$x" >> x.txt
-        echo "$y" >> y.txt
+        echo "$x" >> 'parameter files/DCSB m.txt'
+        echo "$y" >> 'parameter files/DCSB nu.txt'
     
     done
 done

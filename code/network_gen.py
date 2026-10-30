@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import graph_tool.all as gt
 import os
+import random
 
 def gen_model(N, p, model):
     """
@@ -28,7 +29,108 @@ def gen_model(N, p, model):
     # save to file
     nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {''.join(p.split('.'))}.net.gz')
 
-def generate_dcsbm_ba(N, K, m, mu):
+def gen_model_2d(N, p, q, model, K=None):
+    """
+    Generate a network using a double-parameter graph model.
+    
+    Parameters
+    ----------
+        N: int
+            network size
+        p: str
+            first input parameter
+        q: str
+            second input parameter
+        model: str
+            which graph model to use
+        K: int
+            number of groups, if applicable
+    """
+    # choose graph model
+    if model == 'DCSB':
+        G = generate_dcsbm_ba(N, K, p, float(q))
+        nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz')
+    elif model == 'SWSF':
+        G = generate_SWSF(N, p, q)
+        nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz')
+
+def generate_swsf(N, m, mu):
+    """
+    Generate a Klemm-Eguiluz Small-World-Scale-Free model.
+
+    Parameters
+    ----------
+        N: int
+            network size
+        m: int
+            size of active nodes
+        mu: float
+            probability of edge connecting to non-active node
+
+    Returns
+    -------
+        G: NetworkX Graph
+            the generated SWSF network
+    """
+    # validate inputs
+    if not isinstance(N, int) or isinstance(N, bool) or N < 1:
+        raise ValueError("N must be a positive integer")
+    if not isinstance(m, int) or isinstance(m, bool) or not 1 <= m <= N:
+        raise ValueError("m must be an integer between 1 and N")
+    if not isinstance(mu, (int, float)) or isinstance(mu, bool) or not 0 <= mu <= 1:
+        raise ValueError("mu must be a number between 0 and 1")
+
+    rng = random.Random()
+    G = nx.complete_graph(m)
+    active = list(G.nodes)
+
+    # iterate over new nodes
+    for new_node in range(m, N):
+        deactivated = list(set(G.nodes) - set(active))
+        targets = []
+
+        # iterate over active nodes
+        for active_node in active:
+            # connect to active node with p = (1 - mu) or if there are 0 deactivated nodes
+            if not deactivated or rng.random() >= mu:
+                target = active_node
+            else:
+                connected = False
+                while not connected:
+                    # choose target among deactivated nodes
+                    target = rng.choice(deactivated)
+                    total_degree = sum(G.degree(node) for node in deactivated)
+                    # connect with probability k_target / (sum degree of deactivated nodes)
+                    connected = (
+                        total_degree > 0
+                        and rng.random() < G.degree(target) / total_degree
+                    )
+            targets.append(target)
+
+        # add reciprocal edge from new node to target nodes
+        G.add_node(new_node)
+        G.add_edges_from((new_node, target) for target in targets)
+
+        # add new node to active nodes
+        active.append(new_node)
+        chosen = False
+        # iterate while candidate node not yet chosen
+        while not chosen:
+            # choose random candidate from active nodes
+            candidate = rng.choice(active)
+            # calculate deactivation probability
+            inverse_degree_sum = sum(
+                1 / G.degree(node) for node in active if G.degree(node) > 0
+            )
+            pd = (1 / G.degree(candidate)) / inverse_degree_sum
+            # remove candidate from active nodes with p = p_d
+            if rng.random() < pd:
+                active.remove(candidate)
+                chosen = True
+
+    return G
+
+def generate_dcsbm_ba(N, K, m, nu):
     """
     Generates a DCSBM graph with a Barabási-Albert degree sequence using graph-tool,
     then converts to a NetworkX graph. Also performs a rewiring algorithm to remove
@@ -42,7 +144,7 @@ def generate_dcsbm_ba(N, K, m, mu):
         number of blocks/communities.
     m: str
         Barabási-Albert attachment parameter (average degree approx. 2m).
-    mu: float
+    nu: float
         mixing parameter (fraction of inter-block edges).
         
     Returns
@@ -65,8 +167,8 @@ def generate_dcsbm_ba(N, K, m, mu):
     
     # construct the expected edge-count matrix by assuming constant intrablock 
     # connections and interblock connections
-    probs = np.full((K, K), (mu * D) / (K * (K - 1.0)))
-    np.fill_diagonal(probs, ((1.0 - mu) * D) / K)
+    probs = np.full((K, K), (nu * D) / (K * (K - 1.0)))
+    np.fill_diagonal(probs, ((1.0 - nu) * D) / K)
                 
     # generate the graph using graph-tool's DCSBM generator
     g = gt.generate_sbm(
@@ -133,7 +235,31 @@ def gen_graph_samples(N, p, n, model):
         os.makedirs(output, exist_ok=True)
         nx.write_pajek(G, f'{output}/{N} {''.join(p.split('.'))}.net.gz')
 
-def gen_dcsbm_samples(N, K, m, mu, n):
+def gen_swsfm_samples(N, m, mu, n):
+    """
+    Generate samples of a SWSF model given 2 input parameters.
+    
+    Parameters
+    ----------
+        N: int
+            network size
+        m: str
+            first input parameter
+        mu: str
+            second input parameter
+        n: str
+            number of networks to produce for each parameters
+    """
+    # generate n graphs for each point in parameter space
+    for i in range(n):
+        # generate DCSBM network
+        G = generate_swsf(N, int(m), float(mu))
+        # save graph to file
+        output = f'./graphs/pajek/SWSF/{i}'
+        os.makedirs(output, exist_ok=True)
+        nx.write_pajek(G, f'{output}/{N} {m} {''.join(mu.split('.'))}.net.gz')
+
+def gen_dcsbm_samples(N, K, m, nu, n):
     """
     Generate samples of a DCSB model given 2 input parameters.
     
@@ -144,20 +270,20 @@ def gen_dcsbm_samples(N, K, m, mu, n):
         K: int
             number of groups
         m: str
-            input parameter point (1)
-        mu: str
-            input parameter point (2)
+            first input parameter
+        nu: str
+            second input parameter
         n: str
             number of networks to produce for each parameters
     """
     # generate n graphs for each point in parameter space
     for i in range(n):
         # generate DCSBM network
-        G = generate_dcsbm_ba(N, K, m, float(mu))
+        G = generate_dcsbm_ba(N, K, m, float(nu))
         # save graph to file
         output = f'./graphs/pajek/DCSB/{i}'
         os.makedirs(output, exist_ok=True)
-        nx.write_pajek(G, f'{output}/{N} {m} {''.join(mu.split('.'))}.net.gz')
+        nx.write_pajek(G, f'{output}/{N} {K} {m} {''.join(nu.split('.'))}.net.gz')
 
 def graph_tool_to_networkx(g: gt.Graph) -> nx.Graph:
     """Convert a graph-tool graph to a NetworkX graph."""
@@ -172,8 +298,10 @@ def graph_tool_to_networkx(g: gt.Graph) -> nx.Graph:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
-    parser.add_argument('-n', type=int, default=1, help='number of graphs to produce per parameter point')
-    parser.add_argument('-p', type=str, help='probability of connecting two random nodes')
+    parser.add_argument('-n', type=int, default=10, help='number of graphs to produce per parameter point')
+    parser.add_argument('-p', type=str, help='first graph input parameter')
+    parser.add_argument('-q', type=str, help='second graph input parameter')
+    parser.add_argument('-K', type=int, default=10, help='number of groups for DCSBM')
     parser.add_argument('-f', type=str, help='file containing graph parameter input')
     parser.add_argument('--gen', action='store_true', help='generate a graph')
     parser.add_argument('--samples', action='store_true', help='generate graph samples for given parameter point')
