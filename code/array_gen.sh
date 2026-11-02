@@ -4,13 +4,13 @@
 #SBATCH --mem-per-cpu 1G
 #SBATCH --time 2:00:00
 #SBATCH --job-name networks
-#SBATCH --array=1-10
+#SBATCH --array=1-2
 #
 #######################################
 
 N=5000
 
-x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/BA m.txt")
+x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/BA m 2points.txt")
 
 echo "Task $SLURM_ARRAY_TASK_ID: p=$x"
 

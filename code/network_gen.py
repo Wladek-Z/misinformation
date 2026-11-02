@@ -51,7 +51,7 @@ def gen_model_2d(N, p, q, model, K=None):
         G = generate_dcsbm_ba(N, K, p, float(q))
         nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz')
     elif model == 'SWSF':
-        G = generate_SWSF(N, p, q)
+        G = generate_swsf(N, p, q)
         nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz')
 
 def generate_swsf(N, m, mu):
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', type=str, help='file containing graph parameter input')
     parser.add_argument('--gen', action='store_true', help='generate a graph')
     parser.add_argument('--samples', action='store_true', help='generate graph samples for given parameter point')
-    parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB'], help='Choose network model to generate')
+    parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB', 'SWSF'], help='Choose network model to generate')
     args = parser.parse_args()
 
     if args.gen:
@@ -313,5 +313,7 @@ if __name__ == "__main__":
     elif args.samples:
         if args.m == 'DCSB':
             gen_dcsbm_samples()
+        elif args.m == 'SWSF':
+            gen_swsfm_samples(args.N, args.p, args.q, args.n)
         else:
             gen_graph_samples(args.N, args.p, args.n, args.m)

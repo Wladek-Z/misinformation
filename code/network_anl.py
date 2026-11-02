@@ -31,6 +31,38 @@ def average_degree(G):
     )
     return mean_degree, fano_factor
 
+def average_clustering(G):
+    """
+    Return the average clustering coefficient and its Fano factor.
+
+    Parameters
+    ----------
+        G: NetworkX graph
+            the network as a networkx graph
+
+    Returns
+    -------
+        mean_clustering: float
+            the mean node clustering coefficient of the graph
+        fano_factor: float
+            the variance of clustering coefficients divided by their mean
+    """
+    clustering_coefficients = np.fromiter(
+        nx.clustering(G).values(),
+        dtype=float
+    )
+    mean_clustering = (
+        clustering_coefficients.mean()
+        if clustering_coefficients.size
+        else np.nan
+    )
+    fano_factor = (
+        clustering_coefficients.var() / mean_clustering
+        if clustering_coefficients.size and mean_clustering != 0
+        else np.nan
+    )
+    return mean_clustering, fano_factor
+
 def all_metrics(n, p, N, model, q=None, K=None):
     """
     Read in graphs for a given parameter point and perform analysis over all relevant
@@ -60,7 +92,8 @@ def all_metrics(n, p, N, model, q=None, K=None):
         'diameter',
         'k_assortativity',
         'n_components',
-        'F_factor',
+        'F_factor_k',
+        'F_factor_cc',
         'a_connectivity',
         'spectral_r'
     ]
@@ -86,7 +119,8 @@ def all_metrics(n, p, N, model, q=None, K=None):
         # calculate number of connected components
         ncc_current = nx.number_connected_components(G)
         # calculate average degree and Fano factor
-        avg_k, fano_factor = average_degree(G)
+        avg_k, fano_factor_k = average_degree(G)
+        avg_cc, fano_factor_cc = average_clustering(G)
         # calculate spectral radius from adjacency matrix
         A = nx.to_scipy_sparse_array(G, dtype=float)
         spectral_radius = eigsh(
@@ -107,11 +141,12 @@ def all_metrics(n, p, N, model, q=None, K=None):
         # calculate remaining metrics
         values = {
             'avg_k': avg_k,
-            'avg_cc': nx.average_clustering(G),
+            'avg_cc': avg_cc,
             'transitivity': nx.transitivity(G),
             'k_assortativity': nx.degree_assortativity_coefficient(G),
             'n_components': ncc_current,
-            'F_factor': fano_factor,
+            'F_factor_k': fano_factor_k,
+            'F_factor_cc': fano_factor_cc,
             'a_connectivity': a_connectivity,
             'spectral_r': spectral_radius
         }
@@ -171,7 +206,8 @@ def analyse_means(param_file, model, N):
         'diameter',
         'k_assortativity',
         'n_components',
-        'F_factor',
+        'F_factor_k',
+        'F_factor_cc',
         'a_connectivity',
         'spectral_r'
     ]
@@ -252,7 +288,8 @@ def analyse_means_2d(param_file_1, param_file_2, model, N, K=None):
         'diameter',
         'k_assortativity',
         'n_components',
-        'F_factor',
+        'F_factor_k',
+        'F_factor_cc',
         'a_connectivity',
         'spectral_r'
     ]
@@ -322,6 +359,7 @@ if __name__ == "__main__":
     parser.add_argument('-N', type=str, default='5000', help='network size')
     parser.add_argument('-n', type=int, default=1, help='number of graphs per parameter point')
     parser.add_argument('--avgdeg', action='store_true', help='output the average degree of a graph')
+    parser.add_argument('--avgcc', action='store_true', help='output the average clustering coefficient of a graph')
     parser.add_argument('--all', action='store_true', help='analyse all properties for an input parameter point')
     parser.add_argument('--mean', action='store_true', help='combine sampled graph statistics')
     args = parser.parse_args()
@@ -330,6 +368,11 @@ if __name__ == "__main__":
         G = nx.Graph(nx.read_pajek(args.f))
         average, fano_factor = average_degree(G)
         print(f'average degree: {average}')
+        print(f'Fano factor: {fano_factor}')
+    elif args.avgcc:
+        G = nx.Graph(nx.read_pajek(args.f))
+        average, fano_factor = average_clustering(G)
+        print(f'average clustering coefficient: {average}')
         print(f'Fano factor: {fano_factor}')
     elif args.all:
         all_metrics(args.n, args.p, args.N, args.m)

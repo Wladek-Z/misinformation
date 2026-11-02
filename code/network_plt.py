@@ -3,10 +3,6 @@ import pandas as pd
 import argparse
 import os
 import numpy as np
-#import scienceplots
-
-#plt.style.use('science')
-#plt.rcParams['text.usetex'] = False
 
 from pathlib import Path
 
@@ -125,7 +121,8 @@ def plot_all_1d(model, N, n):
         'diameter, $d$',
         'degree assortativity, $r$',
         r'\# connected components, $n_c$',
-        'degree Fano factor, $F$',
+        'degree Fano factor, $F_k$',
+        'clustering Fano factor, $F_C$',
         'algebraic connectivity, $a$',
         r'spectral radius, $\rho$'
     ]
@@ -194,7 +191,8 @@ def plot_ER_and_BA(N, n):
         'diameter, $d$',
         'degree assortativity, $r$',
         r'\# connected components, $n_c$',
-        'degree Fano factor, $F$',
+        'degree Fano factor, $F_k$',
+        'clustering Fano factor, $F_C$',
         'algebraic connectivity, $a$',
         r'spectral radius, $\rho$'
     ]
@@ -244,6 +242,112 @@ def plot_ER_and_BA(N, n):
     filename = f'./graphs/plots/ER+BA'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
+
+def plot_ER_and_BA_log(N, n):
+    """
+    Plot comparisons of global metrics against average degree between the
+    ER and BA models in log space.
+    
+    Parameters
+    ----------
+        N: int
+            network size
+        n: int
+            number of graphs sampled for the mean
+    """
+    # load in network data
+    df_ER = pd.read_csv(f'graphs/data/ER/combined/{N} extra.txt')
+    df_BA = pd.read_csv(f'graphs/data/BA/combined/{N} extra.txt')
+
+    # set xlabel to average degree
+    xlabel = r'average degree, $\langle k \rangle$'
+
+    ylabels = [
+        r'average clustering coefficient, $\langle C \rangle$',
+        'transitivity, $T$',
+        'average path length, $l$',
+        'diameter, $d$',
+        'degree assortativity, $r$',
+        r'\# connected components, $n_c$',
+        'degree Fano factor, $F_k$',
+        'clustering Fano factor, $F_C$',
+        'algebraic connectivity, $a$',
+        r'spectral radius, $\rho$'
+    ]
+
+    # iterate over each metric in the dataframe
+    for metric, error, ylabel in zip(df_ER.columns[3::2], df_ER.columns[4::2], ylabels):
+        # skip number of connected components
+        if metric == 'n_components_mean':
+            continue
+        # plot figure
+        fig, ax = plot_2_in_1_y_vs_x_with_errors(
+            df_ER['avg_k_mean'], 
+            df_ER[metric], 
+            df_ER['avg_k_sem'], 
+            df_ER[error], 
+            df_BA['avg_k_mean'], 
+            df_BA[metric], 
+            df_BA['avg_k_sem'], 
+            df_BA[error], 
+            xlabel, 
+            ylabel
+        )
+        # convert to logscale
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+
+        # add zero line to degree assortativity plot
+        if metric == 'k_assortativity_mean':
+            ax.axhline(0, color='black', linestyle='--', alpha=0.75)
+
+        # define filepath and save figure
+        filename = f'./graphs/plots/ER+BA'
+        os.makedirs(filename, exist_ok=True)
+        plt.savefig(f'{filename}/{metric} {N}')
+
+    # also plot standard deviation of degree assortativity
+    k_ass_std_ER = df_ER['k_assortativity_sem'] * np.sqrt(n)
+    k_ass_std_BA = df_BA['k_assortativity_sem'] * np.sqrt(n)
+    ylabel = r'standard deviation of $r$, $\sigma_r$'
+    fig, ax = plot_2_in_1_y_vs_x_with_errors(
+        df_ER['avg_k_mean'], 
+        k_ass_std_ER, 
+        df_ER['avg_k_sem'],
+        0, 
+        df_BA['avg_k_mean'], 
+        k_ass_std_BA, 
+        df_BA['avg_k_sem'],
+        0, 
+        xlabel, 
+        ylabel
+    )
+    ax.axhline(0, color='black', linestyle='--', alpha=0.75)
+    # define filepath and save figure
+    filename = f'./graphs/plots/ER+BA'
+    os.makedirs(filename, exist_ok=True)
+    plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
+
+    # also plot difference between clustering coefficient and transitivity
+    err_ER = np.sqrt(df_ER['avg_cc_sem']**2 + df_ER['transitivity_sem']**2)
+    err_BA = np.sqrt(df_BA['avg_cc_sem']**2 + df_BA['transitivity_sem']**2)
+    ylabel = r'|$\langle C \rangle - T$|'
+    fig, ax = plot_2_in_1_y_vs_x_with_errors(
+        df_ER['avg_k_mean'], 
+        np.abs(df_ER['avg_cc_mean'] - df_ER['transitivity_mean']), 
+        df_ER['avg_k_sem'],
+        err_ER, 
+        df_BA['avg_k_mean'], 
+        np.abs(df_BA['avg_cc_mean'] - df_BA['transitivity_mean']), 
+        df_BA['avg_k_sem'],
+        err_BA,
+        xlabel, 
+        ylabel
+    )
+    # define filepath and save figure
+    filename = f'./graphs/plots/ER+BA'
+    os.makedirs(filename, exist_ok=True)
+    plt.savefig(f'{filename}/{'cc_T_diff'} {N}')
     
 
 if __name__ == "__main__":

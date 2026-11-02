@@ -1,6 +1,6 @@
 #!/bin/bash
 filename=$1
 
-for x in $(seq 5 5 50); do
-    echo "$x" >> "$HOME/repos/misinformation/parameter files/${filename}"
+for x in $(seq 0.04 0.08 0.20); do
+    echo "$x" >> "parameter files/ER p mini.txt"
 done
