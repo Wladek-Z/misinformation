@@ -41,7 +41,7 @@ def plot_y_vs_x_with_errors(x, y, y_err, xlabel, ylabel):
     ax.errorbar(x, y, yerr=y_err, marker='o', linestyle='-', color=ed.saphire, label='numerical')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.grid(alpha=0.5)
+    #ax.grid(alpha=0.5)
 
     return fig, ax
 
@@ -71,11 +71,19 @@ def plot_heatmap(x, y, z, xlabel, ylabel, clabel):
         ax: matplotlib Axes
             the axis of the figure
     """
-    # reshape data for heat map
+    # Sort by coordinates before reshaping so the input row order does not
+    # determine which values are assigned to each heatmap cell.
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    if not (x.size == y.size == z.size):
+        raise ValueError("x, y, and z must contain the same number of values")
+
     nx, ny = np.unique(x), np.unique(y)
+    order = np.lexsort((y, x))
     size_x = len(nx)
     size_y = len(ny)
-    Z = z.reshape(size_x, size_y).T
+    Z = z[order].reshape(size_x, size_y).T
     X, Y = np.meshgrid(nx, ny)
 
     fig, ax = plt.subplots(1, 1, layout='constrained')
@@ -128,7 +136,7 @@ def plot_2_in_1_y_vs_x_with_errors(x1, y1, x_err1, y_err1, x2, y2, x_err2, y_err
     ax.errorbar(x2, y2, xerr=x_err2, yerr=y_err2, marker='o', linestyle='-', color=ed.crimson, label='BA')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.grid(alpha=0.5)
+    #ax.grid(alpha=0.5)
     ax.legend()
 
     return fig, ax
@@ -196,7 +204,7 @@ def plot_all_1d(model, N, n):
             ax.axhline(0, color='black', linestyle='--', alpha=0.75)
 
         # define filepath and save figure
-        filename = f'../misinformation images/plots/{model}'
+        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
 
@@ -205,7 +213,7 @@ def plot_all_1d(model, N, n):
     ylabel = r'standard deviation of $r$, $\sigma_r$'
     fig, ax = plot_y_vs_x_with_errors(df['p'], k_ass_std, 0, xlabel, ylabel)
     # define filepath and save figure
-    filename = f'../misinformation images/plots/{model}'
+    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
 
@@ -262,7 +270,7 @@ def plot_ER_and_BA(N, n):
             ax.axhline(0, color='black', linestyle='--', alpha=0.75)
 
         # define filepath and save figure
-        filename = f'../misinformation images/plots/ER+BA'
+        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA'
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
 
@@ -283,7 +291,7 @@ def plot_ER_and_BA(N, n):
         ylabel
     )
     # define filepath and save figure
-    filename = f'../misinformation images/plots/ER+BA'
+    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
 
@@ -342,7 +350,7 @@ def plot_ER_and_BA_log(N, n):
         ax.set_yscale('log')
 
         # define filepath and save figure
-        filename = f'../misinformation images/plots/ER+BA/log'
+        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA/log'
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
 
@@ -366,7 +374,7 @@ def plot_ER_and_BA_log(N, n):
     ax.set_xscale('log')
     ax.set_yscale('log')
     # define filepath and save figure
-    filename = f'../misinformation images/plots/ER+BA/log'
+    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA/log'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'cc_T_diff'} {N}')
 
@@ -387,37 +395,44 @@ def plot_all_2d(model, N, n, K=None):
             number of groups, if applicable
     """
     # load in network data
-    df = pd.read_csv(f'graphs/data/{model}/combined/{N}.txt')
+    if model == 'DCSB':
+        df = pd.read_csv(f'graphs/data/{model}/combined/{N} {K}.txt')
+    elif model == 'SWSF':
+        df = pd.read_csv(f'graphs/data/{model}/combined/{N}.txt')
 
     # set axis labels
     xlabel = 'edges per new node, $m$'
     if model == 'DCSB':
-        ylabel = r'mixing parameter, $\nu'
+        ylabel = r'mixing parameter, $\nu$'
     elif model == 'SWSF':
-        ylabel = r'deactivated edge probability, $\mu'
+        ylabel = r'deactivated edge probability, $\mu$'
 
     # set colour bar labels
-    clabels = [
-        r'average degree, $\langle k \rangle$',
-        r'average clustering coefficient, $\langle C \rangle$',
-        'transitivity, $T$',
-        'average path length, $l$',
-        'diameter, $d$',
-        'degree assortativity, $r$',
-        r'\# connected components, $n_c$',
-        'degree Fano factor, $F_k$',
-        'clustering Fano factor, $F_C$',
-        'algebraic connectivity, $a$',
-        r'spectral radius, $\rho$'
-    ]
+    clabels = {
+        'avg_k_mean': r'average degree, $\langle k \rangle$',
+        'avg_cc_mean': r'average clustering coefficient, $\langle C \rangle$',
+        'transitivity_mean': 'transitivity, $T$',
+        'avg_path_length_mean': 'average path length, $l$',
+        'diameter_mean': 'diameter, $d$',
+        'k_assortativity_mean': 'degree assortativity, $r$',
+        'n_components_mean': r'\# connected components, $n_c$',
+        'F_factor_k_mean': 'degree Fano factor, $F_k$',
+        'F_factor_cc_mean': 'clustering Fano factor, $F_C$',
+        'a_connectivity_mean': 'algebraic connectivity, $a$',
+        'spectral_r_mean': r'spectral radius, $\rho$',
+        'modularity_mean': 'modularity, $Q$',
+    }
 
-    # iterate over each metric in the dataframe
-    for metric, clabel in zip(df.columns[1::2], clabels):
+    # Select metric means explicitly
+    metrics = [column for column in df.columns if column in clabels]
+    # iterate over each metric
+    for metric in metrics:
+        clabel = clabels[metric]
         # plot figure
         fig, ax = plot_heatmap(df['p'], df['q'], df[metric], xlabel, ylabel, clabel)
 
         # define filepath and save figure
-        filename = f'../misinformation images/plots/{model}'
+        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
         os.makedirs(filename, exist_ok=True)
         if model == 'DCSB':
             plt.savefig(f'{filename}/{metric} {N} {K}')
@@ -429,12 +444,12 @@ def plot_all_2d(model, N, n, K=None):
     clabel = r'standard deviation of $r$, $\sigma_r$'
     fig, ax = plot_heatmap(df['p'], df['q'], k_ass_std, xlabel, ylabel, clabel)
     # define filepath and save figure
-    filename = f'../misinformation images/plots/{model}'
+    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
     os.makedirs(filename, exist_ok=True)
     if model == 'DCSB':
-        plt.savefig(f'{filename}/{metric} {N} {K}')
+        plt.savefig(f'{filename}/k_ass_std {N} {K}')
     elif model == 'SWSF':
-        plt.savefig(f'{filename}/{metric} {N}')
+        plt.savefig(f'{filename}/k_ass_std {N}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -442,8 +457,9 @@ if __name__ == "__main__":
     parser.add_argument('-K', type=int, default=10, help='number of groups')
     parser.add_argument('--all', action='store_true', help='plot all metrics for a 1D parameter space')
     parser.add_argument('--all2', action='store_true', help='plot all metrics for a both ER and BA models against <k>')
+    parser.add_argument('--log2', action='store_true', help='plot all metrics for a both ER and BA models in logspace')
     parser.add_argument('--all2d', action='store_true', help='plot all metrics on 2-dimensional heat maps')
-    parser.add_argument('-m', type=str, choices=['ER', 'BA'], help='Choose network model to generate')
+    parser.add_argument('-m', type=str, choices=['ER', 'BA', 'SWSF', 'DCSB'], help='Choose network model to generate')
     parser.add_argument('-n', type=int, default=10, help='number of graphs per parameter point')
     args = parser.parse_args()
 
@@ -453,3 +469,5 @@ if __name__ == "__main__":
         plot_ER_and_BA(args.N, args.n)
     elif args.all2d:
         plot_all_2d(args.m, args.N, args.n, args.K)
+    elif args.log2:
+        plot_ER_and_BA_log(args.N, args.n)

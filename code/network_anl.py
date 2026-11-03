@@ -294,9 +294,9 @@ def analyse_means_2d(param_file_1, param_file_2, model, N, K=None):
     """
     # read in parameters
     p_values = np.loadtxt(param_file_1, dtype=str)
-    p_values = np.unique(np.atleast_1d(p_values))
+    p_values = sorted(np.unique(np.atleast_1d(p_values)), key=float)
     q_values = np.loadtxt(param_file_2, dtype=str)
-    q_values = np.unique(np.atleast_1d(q_values))
+    q_values = sorted(np.unique(np.atleast_1d(q_values)), key=float)
 
     # initialise property arrays
     properties = [
