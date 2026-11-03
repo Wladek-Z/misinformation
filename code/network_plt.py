@@ -3,6 +3,8 @@ import pandas as pd
 import argparse
 import os
 import numpy as np
+import shendrukGroupFormat as ed
+MYLW=1.0 #line width
 
 from pathlib import Path
 
@@ -36,10 +38,52 @@ def plot_y_vs_x_with_errors(x, y, y_err, xlabel, ylabel):
     """
     fig, ax = plt.subplots(1, 1, layout='constrained')
 
-    ax.errorbar(x, y, yerr=y_err, marker='o', linestyle='-', color=[172./255., 0, 64./255.], label='numerical')
+    ax.errorbar(x, y, yerr=y_err, marker='o', linestyle='-', color=ed.saphire, label='numerical')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.5)
+
+    return fig, ax
+
+def plot_heatmap(x, y, z, xlabel, ylabel, clabel):
+    """
+    Plot some global network metric in a 2-dimensional parameter space.
+    
+    Parameters
+    ----------
+        x: ndarray
+            the first independent input parameter
+        y: ndarray
+            the second independent input parameter
+        z: ndarray
+            the metric data to plot
+        xlabel: str
+            the x-axis label
+        ylabel: str
+            the y-axis label    
+        clabel: str
+            the colour bar label
+    
+    Returns
+    -------
+        fig: matplotlib Figure
+            the generated figure
+        ax: matplotlib Axes
+            the axis of the figure
+    """
+    # reshape data for heat map
+    nx, ny = np.unique(x), np.unique(y)
+    size_x = len(nx)
+    size_y = len(ny)
+    Z = z.reshape(size_x, size_y).T
+    X, Y = np.meshgrid(nx, ny)
+
+    fig, ax = plt.subplots(1, 1, layout='constrained')
+
+    heatmap = ax.pcolormesh(X, Y, Z, cmap=ed.inferno, shading='auto')
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    fig.colorbar(heatmap, ax=ax, label=clabel)
 
     return fig, ax
 
@@ -80,8 +124,8 @@ def plot_2_in_1_y_vs_x_with_errors(x1, y1, x_err1, y_err1, x2, y2, x_err2, y_err
     """
     fig, ax = plt.subplots(1, 1, layout='constrained')
 
-    ax.errorbar(x1, y1, xerr=x_err1, yerr=y_err1, marker='o', linestyle='-', color=[172./255., 0, 64./255.], label='ER')
-    ax.errorbar(x2, y2, xerr=x_err2, yerr=y_err2, marker='o', linestyle='-', color=[0, 80./255., 114./255.], label='BA')
+    ax.errorbar(x1, y1, xerr=x_err1, yerr=y_err1, marker='o', linestyle='-', color=ed.saphire, label='ER')
+    ax.errorbar(x2, y2, xerr=x_err2, yerr=y_err2, marker='o', linestyle='-', color=ed.crimson, label='BA')
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.5)
@@ -136,15 +180,15 @@ def plot_all_1d(model, N, n):
         if model == 'ER':
             if metric == 'avg_k_mean':
                 y_analytical = df['p'] * N
-                ax.plot(df['p'], y_analytical, color=[205./255., 90./255., 19./255.], linestyle='--', label='analytical')
+                ax.plot(df['p'], y_analytical, color=ed.amber, linestyle='--', label='analytical')
                 ax.legend(loc='upper center')
             elif metric == 'avg_cc_mean':
                 y_analytical = df['p']
-                ax.plot(df['p'], y_analytical, color=[205./255., 90./255., 19./255.], linestyle='--', label='analytical')
+                ax.plot(df['p'], y_analytical, color=ed.amber, linestyle='--', label='analytical')
                 ax.legend(loc='upper center')
         elif model == 'BA' and metric == 'avg_k_mean':
             y_analytical = (2 * N - df['p'] - 1) * df['p'] / N
-            ax.plot(df['p'], y_analytical, color=[205./255., 90./255., 19./255.], linestyle='--', label='analytical')
+            ax.plot(df['p'], y_analytical, color=ed.amber, linestyle='--', label='analytical')
             ax.legend(loc='upper center')
 
         # add zero line to degree assortativity plot
@@ -152,7 +196,7 @@ def plot_all_1d(model, N, n):
             ax.axhline(0, color='black', linestyle='--', alpha=0.75)
 
         # define filepath and save figure
-        filename = f'./graphs/plots/{model}'
+        filename = f'../misinformation images/plots/{model}'
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
 
@@ -161,7 +205,7 @@ def plot_all_1d(model, N, n):
     ylabel = r'standard deviation of $r$, $\sigma_r$'
     fig, ax = plot_y_vs_x_with_errors(df['p'], k_ass_std, 0, xlabel, ylabel)
     # define filepath and save figure
-    filename = f'./graphs/plots/{model}'
+    filename = f'../misinformation images/plots/{model}'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
 
@@ -218,7 +262,7 @@ def plot_ER_and_BA(N, n):
             ax.axhline(0, color='black', linestyle='--', alpha=0.75)
 
         # define filepath and save figure
-        filename = f'./graphs/plots/ER+BA'
+        filename = f'../misinformation images/plots/ER+BA'
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
 
@@ -239,7 +283,7 @@ def plot_ER_and_BA(N, n):
         ylabel
     )
     # define filepath and save figure
-    filename = f'./graphs/plots/ER+BA'
+    filename = f'../misinformation images/plots/ER+BA'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
 
@@ -277,8 +321,8 @@ def plot_ER_and_BA_log(N, n):
 
     # iterate over each metric in the dataframe
     for metric, error, ylabel in zip(df_ER.columns[3::2], df_ER.columns[4::2], ylabels):
-        # skip number of connected components
-        if metric == 'n_components_mean':
+        # skip number of connected components and degree assortativity (useless in log space)
+        if metric == 'n_components_mean' or metric == 'k_assortativity_mean':
             continue
         # plot figure
         fig, ax = plot_2_in_1_y_vs_x_with_errors(
@@ -297,41 +341,15 @@ def plot_ER_and_BA_log(N, n):
         ax.set_xscale('log')
         ax.set_yscale('log')
 
-        # add zero line to degree assortativity plot
-        if metric == 'k_assortativity_mean':
-            ax.axhline(0, color='black', linestyle='--', alpha=0.75)
-
         # define filepath and save figure
-        filename = f'./graphs/plots/ER+BA'
+        filename = f'../misinformation images/plots/ER+BA/log'
         os.makedirs(filename, exist_ok=True)
         plt.savefig(f'{filename}/{metric} {N}')
-
-    # also plot standard deviation of degree assortativity
-    k_ass_std_ER = df_ER['k_assortativity_sem'] * np.sqrt(n)
-    k_ass_std_BA = df_BA['k_assortativity_sem'] * np.sqrt(n)
-    ylabel = r'standard deviation of $r$, $\sigma_r$'
-    fig, ax = plot_2_in_1_y_vs_x_with_errors(
-        df_ER['avg_k_mean'], 
-        k_ass_std_ER, 
-        df_ER['avg_k_sem'],
-        0, 
-        df_BA['avg_k_mean'], 
-        k_ass_std_BA, 
-        df_BA['avg_k_sem'],
-        0, 
-        xlabel, 
-        ylabel
-    )
-    ax.axhline(0, color='black', linestyle='--', alpha=0.75)
-    # define filepath and save figure
-    filename = f'./graphs/plots/ER+BA'
-    os.makedirs(filename, exist_ok=True)
-    plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
 
     # also plot difference between clustering coefficient and transitivity
     err_ER = np.sqrt(df_ER['avg_cc_sem']**2 + df_ER['transitivity_sem']**2)
     err_BA = np.sqrt(df_BA['avg_cc_sem']**2 + df_BA['transitivity_sem']**2)
-    ylabel = r'|$\langle C \rangle - T$|'
+    ylabel = r'$|\langle C \rangle - T|$'
     fig, ax = plot_2_in_1_y_vs_x_with_errors(
         df_ER['avg_k_mean'], 
         np.abs(df_ER['avg_cc_mean'] - df_ER['transitivity_mean']), 
@@ -344,17 +362,87 @@ def plot_ER_and_BA_log(N, n):
         xlabel, 
         ylabel
     )
+    # convert to logscale
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     # define filepath and save figure
-    filename = f'./graphs/plots/ER+BA'
+    filename = f'../misinformation images/plots/ER+BA/log'
     os.makedirs(filename, exist_ok=True)
     plt.savefig(f'{filename}/{'cc_T_diff'} {N}')
+
+def plot_all_2d(model, N, n, K=None):
+    """
+    Plot all global metrics in a 2-dimensional parameter space for
+    a given double parameter network model of size N.
     
+    Parameters
+    ----------
+        model: str
+            which network model to plot results for
+        N: int
+            size of network model used in results
+        n: int
+            number of graphs used to calculate mean
+        K: int
+            number of groups, if applicable
+    """
+    # load in network data
+    df = pd.read_csv(f'graphs/data/{model}/combined/{N}.txt')
+
+    # set axis labels
+    xlabel = 'edges per new node, $m$'
+    if model == 'DCSB':
+        ylabel = r'mixing parameter, $\nu'
+    elif model == 'SWSF':
+        ylabel = r'deactivated edge probability, $\mu'
+
+    # set colour bar labels
+    clabels = [
+        r'average degree, $\langle k \rangle$',
+        r'average clustering coefficient, $\langle C \rangle$',
+        'transitivity, $T$',
+        'average path length, $l$',
+        'diameter, $d$',
+        'degree assortativity, $r$',
+        r'\# connected components, $n_c$',
+        'degree Fano factor, $F_k$',
+        'clustering Fano factor, $F_C$',
+        'algebraic connectivity, $a$',
+        r'spectral radius, $\rho$'
+    ]
+
+    # iterate over each metric in the dataframe
+    for metric, clabel in zip(df.columns[1::2], clabels):
+        # plot figure
+        fig, ax = plot_heatmap(df['p'], df['q'], df[metric], xlabel, ylabel, clabel)
+
+        # define filepath and save figure
+        filename = f'../misinformation images/plots/{model}'
+        os.makedirs(filename, exist_ok=True)
+        if model == 'DCSB':
+            plt.savefig(f'{filename}/{metric} {N} {K}')
+        elif model == 'SWSF':
+            plt.savefig(f'{filename}/{metric} {N}')
+
+    # also plot standard deviation of degree assortativity
+    k_ass_std = df['k_assortativity_sem'] * np.sqrt(n)
+    clabel = r'standard deviation of $r$, $\sigma_r$'
+    fig, ax = plot_heatmap(df['p'], df['q'], k_ass_std, xlabel, ylabel, clabel)
+    # define filepath and save figure
+    filename = f'../misinformation images/plots/{model}'
+    os.makedirs(filename, exist_ok=True)
+    if model == 'DCSB':
+        plt.savefig(f'{filename}/{metric} {N} {K}')
+    elif model == 'SWSF':
+        plt.savefig(f'{filename}/{metric} {N}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
+    parser.add_argument('-K', type=int, default=10, help='number of groups')
     parser.add_argument('--all', action='store_true', help='plot all metrics for a 1D parameter space')
     parser.add_argument('--all2', action='store_true', help='plot all metrics for a both ER and BA models against <k>')
+    parser.add_argument('--all2d', action='store_true', help='plot all metrics on 2-dimensional heat maps')
     parser.add_argument('-m', type=str, choices=['ER', 'BA'], help='Choose network model to generate')
     parser.add_argument('-n', type=int, default=10, help='number of graphs per parameter point')
     args = parser.parse_args()
@@ -363,3 +451,5 @@ if __name__ == "__main__":
         plot_all_1d(args.m, args.N, args.n)
     elif args.all2:
         plot_ER_and_BA(args.N, args.n)
+    elif args.all2d:
+        plot_all_2d(args.m, args.N, args.n, args.K)
