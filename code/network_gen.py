@@ -51,7 +51,7 @@ def gen_model_2d(N, p, q, model, K=None):
         G = generate_dcsbm_ba(N, K, p, float(q))
         nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz')
     elif model == 'SWSF':
-        G = generate_swsf(N, p, q)
+        G = generate_swsf(N, int(p), float(q))
         nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz')
 
 def generate_swsf(N, m, mu):
@@ -83,11 +83,14 @@ def generate_swsf(N, m, mu):
     rng = random.Random()
     G = nx.complete_graph(m)
     active = list(G.nodes)
+    deactivated = []
+    deactivated_set = set()
+    deactivated_degree_total = 0
 
     # iterate over new nodes
     for new_node in range(m, N):
-        deactivated = list(set(G.nodes) - set(active))
         targets = []
+        deactivated_weights = [G.degree(node) for node in deactivated]
 
         # iterate over active nodes
         for active_node in active:
@@ -95,37 +98,42 @@ def generate_swsf(N, m, mu):
             if not deactivated or rng.random() >= mu:
                 target = active_node
             else:
-                connected = False
-                while not connected:
-                    # choose target among deactivated nodes
-                    target = rng.choice(deactivated)
-                    total_degree = sum(G.degree(node) for node in deactivated)
-                    # connect with probability k_target / (sum degree of deactivated nodes)
-                    connected = (
-                        total_degree > 0
-                        and rng.random() < G.degree(target) / total_degree
+                if deactivated_degree_total == 0:
+                    raise RuntimeError(
+                        "Cannot select a deactivated node because all "
+                        "deactivated nodes have zero degree"
                     )
+                target = rng.choices(
+                    deactivated,
+                    weights=deactivated_weights,
+                    k=1,
+                )[0]
             targets.append(target)
 
         # add reciprocal edge from new node to target nodes
         G.add_node(new_node)
         G.add_edges_from((new_node, target) for target in targets)
+        deactivated_degree_total += len(
+            set(targets).intersection(deactivated_set)
+        )
 
         # add new node to active nodes
         active.append(new_node)
+        inverse_degree_sum = sum(
+            1 / G.degree(node) for node in active if G.degree(node) > 0
+        )
         chosen = False
         # iterate while candidate node not yet chosen
         while not chosen:
             # choose random candidate from active nodes
             candidate = rng.choice(active)
-            # calculate deactivation probability
-            inverse_degree_sum = sum(
-                1 / G.degree(node) for node in active if G.degree(node) > 0
-            )
             pd = (1 / G.degree(candidate)) / inverse_degree_sum
             # remove candidate from active nodes with p = p_d
             if rng.random() < pd:
                 active.remove(candidate)
+                deactivated.append(candidate)
+                deactivated_set.add(candidate)
+                deactivated_degree_total += G.degree(candidate)
                 chosen = True
 
     return G
@@ -199,7 +207,7 @@ def generate_dcsbm_ba(N, K, m, nu):
     G = graph_tool_to_networkx(g)
     nx.set_node_attributes(
         G,
-        {node: int(b[node]) for node in G.nodes},
+        {node: str(int(b[node])) for node in G.nodes},
         name="block"
     )
     
@@ -309,10 +317,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.gen:
-        gen_model(args.N, args.p, args.m)
+        if args.m in ['DCSB', 'SWSF']:
+            gen_model_2d(args.N, args.p, args.q, args.m, args.K)
+        else:
+            gen_model(args.N, args.p, args.m)
     elif args.samples:
         if args.m == 'DCSB':
-            gen_dcsbm_samples()
+            gen_dcsbm_samples(args.N, args.K, args.p, args.q, args.n)
         elif args.m == 'SWSF':
             gen_swsfm_samples(args.N, args.p, args.q, args.n)
         else:

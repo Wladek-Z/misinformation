@@ -80,7 +80,7 @@ def all_metrics(n, p, N, model, q=None, K=None):
             relevant network model
         q: str
             second input parameter point
-        K: str
+        K: int
             number of groups
     """
     # initialise property arrays
@@ -110,6 +110,8 @@ def all_metrics(n, p, N, model, q=None, K=None):
         # resolve filepath to graph
         if model == 'DCSB':
             f = f'./graphs/pajek/{model}/{i}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
+        elif model == 'SWSF':
+            f = f'./graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'    
         else:
             f = f'./graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))}.net.gz'
 
@@ -161,10 +163,22 @@ def all_metrics(n, p, N, model, q=None, K=None):
 
         # calculate modularity for DCSBM only
         if model == 'DCSB':
+            communities_by_block = {block_id: set() for block_id in range(K)}
+            for node, node_data in G.nodes(data=True):
+                if "block" not in node_data:
+                    raise ValueError(
+                        f"DCSBM graph {f} is missing the 'block' node attribute"
+                    )
+                block_id = int(node_data["block"])
+                if block_id not in communities_by_block:
+                    raise ValueError(
+                        f"DCSBM graph {f} contains invalid block {block_id}; "
+                        f"expected values from 0 to {K - 1}"
+                    )
+                communities_by_block[block_id].add(node)
             communities = [
-                {node for node, data in G.nodes(data=True)
-                if data["block"] == block_id}
-                for block_id in sorted(set(np.arange(K)))
+                communities_by_block[block_id]
+                for block_id in range(K)
             ]
             values['modularity'] = modularity(G, communities)
 
@@ -177,7 +191,12 @@ def all_metrics(n, p, N, model, q=None, K=None):
     # save to file
     output = f'graphs/data/{model}/uncombined'
     os.makedirs(output, exist_ok=True)
-    df.to_csv(f'{output}/{N} {''.join(p.split('.'))}.txt')
+    if model == 'DCSB':
+        df.to_csv(f'{output}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.txt')
+    elif model == 'SWSF':
+        df.to_csv(f'{output}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.txt')
+    else:
+        df.to_csv(f'{output}/{N} {''.join(p.split('.'))}.txt')
 
 def analyse_means(param_file, model, N):
     """
@@ -270,14 +289,14 @@ def analyse_means_2d(param_file_1, param_file_2, model, N, K=None):
             network model to analyse
         N: str
             network size
-        K: str
+        K: int
             number of communities, if applicable
     """
     # read in parameters
     p_values = np.loadtxt(param_file_1, dtype=str)
-    p_values = np.atleast_1d(p_values)
+    p_values = np.unique(np.atleast_1d(p_values))
     q_values = np.loadtxt(param_file_2, dtype=str)
-    q_values = np.atleast_1d(q_values)
+    q_values = np.unique(np.atleast_1d(q_values))
 
     # initialise property arrays
     properties = [
@@ -317,7 +336,9 @@ def analyse_means_2d(param_file_1, param_file_2, model, N, K=None):
             # resolve filepath to graph
             if model == 'DCSB':
                 f = f'./graphs/data/{model}/uncombined/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.txt'
-
+            elif model == 'SWSF':
+                f = f'./graphs/data/{model}/uncombined/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.txt'
+            
             # read in data
             df = pd.read_csv(f)
 
@@ -347,21 +368,25 @@ def analyse_means_2d(param_file_1, param_file_2, model, N, K=None):
     os.makedirs(output, exist_ok=True)
     if model == 'DCSB':
         df.to_csv(f'{output}/{N} {K}.txt', index=False)
+    elif model == 'SWSF':
+        df.to_csv(f'{output}/{N}.txt', index=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', type=str, help='filename for graph input')
     parser.add_argument('-out', type=str, help='filename for analysis output')
-    parser.add_argument('-m', type=str, choices=['ER', 'BA'], help='Choose network model to analyse')
+    parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB', 'SWSF'], help='Choose network model to analyse')
     parser.add_argument('-p', type=str, help='primary input parameter value/file')
-    parser.add_argument('-q', type=str, help='secondary input parameter value/file')
+    parser.add_argument('-q', type=str, default=None, help='secondary input parameter value/file')
+    parser.add_argument('-K', type=int, default=None, help='number of groups')
     parser.add_argument('-N', type=str, default='5000', help='network size')
-    parser.add_argument('-n', type=int, default=1, help='number of graphs per parameter point')
+    parser.add_argument('-n', type=int, default=10, help='number of graphs per parameter point')
     parser.add_argument('--avgdeg', action='store_true', help='output the average degree of a graph')
     parser.add_argument('--avgcc', action='store_true', help='output the average clustering coefficient of a graph')
     parser.add_argument('--all', action='store_true', help='analyse all properties for an input parameter point')
     parser.add_argument('--mean', action='store_true', help='combine sampled graph statistics')
+    parser.add_argument('--mean2d', action='store_true', help='combine sampled graph statistics in 2D')
     args = parser.parse_args()
 
     if args.avgdeg:
@@ -375,6 +400,8 @@ if __name__ == "__main__":
         print(f'average clustering coefficient: {average}')
         print(f'Fano factor: {fano_factor}')
     elif args.all:
-        all_metrics(args.n, args.p, args.N, args.m)
+        all_metrics(args.n, args.p, args.N, args.m, args.q, args.K)
     elif args.mean:
         analyse_means(args.p, args.m, args.N)
+    elif args.mean2d:
+        analyse_means_2d(args.p, args.q, args.m, args.N, args.K)
