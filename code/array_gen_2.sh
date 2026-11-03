@@ -3,19 +3,19 @@
 #SBATCH --partition short
 #SBATCH --mem-per-cpu 1G
 #SBATCH --time 12:00:00
-#SBATCH --job-name networks
+#SBATCH --job-name DCSB
 #SBATCH --array=1-100
 #
 #######################################
 
 N=5000
 
-x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/DCSB m.txt")
-y=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/DCSB nu.txt")
+x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/SWSF m.txt")
+y=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/SWSF mu.txt")
 
 echo "Task $SLURM_ARRAY_TASK_ID: p=$x q=$y"
 
-source activate base
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate mphys
 
-python ./code/network_gen.py -N $N -p "$x" -q "$y" -n 10 -m DCSB --samples
+python ./code/network_gen.py -N $N -p "$x" -q "$y" -n 10 -m SWSF --samples
