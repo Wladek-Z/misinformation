@@ -1,7 +1,6 @@
 from matplotlib import pyplot as plt
 import pandas as pd
 import argparse
-import os
 import numpy as np
 import shendrukGroupFormat as ed
 MYLW=1.0 #line width
@@ -9,7 +8,14 @@ MYLW=1.0 #line width
 from pathlib import Path
 
 STYLE_FILE = Path(__file__).with_name("shendrukGroupStyle.mplstyle")
+IMAGE_ROOT = Path.home() / "OneDrive - University of Edinburgh" / "MPhys" / "misinformation images" / "plots"
 plt.style.use(str(STYLE_FILE))
+
+def save_plot(filename):
+    """Save a plot below the configured image directory."""
+    output_path = IMAGE_ROOT / filename
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path)
 
 def plot_y_vs_x_with_errors(x, y, y_err, xlabel, ylabel):
     """
@@ -204,18 +210,14 @@ def plot_all_1d(model, N, n):
             ax.axhline(0, color='black', linestyle='--', alpha=0.75)
 
         # define filepath and save figure
-        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
-        os.makedirs(filename, exist_ok=True)
-        plt.savefig(f'{filename}/{metric} {N}')
+        save_plot(Path(model) / f'{metric} {N}')
 
     # also plot standard deviation of degree assortativity
     k_ass_std = df['k_assortativity_sem'] * np.sqrt(n)
     ylabel = r'standard deviation of $r$, $\sigma_r$'
     fig, ax = plot_y_vs_x_with_errors(df['p'], k_ass_std, 0, xlabel, ylabel)
     # define filepath and save figure
-    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
-    os.makedirs(filename, exist_ok=True)
-    plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
+    save_plot(Path(model) / f'k_assortativity_std {N}')
 
 def plot_ER_and_BA(N, n):
     """
@@ -270,9 +272,7 @@ def plot_ER_and_BA(N, n):
             ax.axhline(0, color='black', linestyle='--', alpha=0.75)
 
         # define filepath and save figure
-        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA'
-        os.makedirs(filename, exist_ok=True)
-        plt.savefig(f'{filename}/{metric} {N}')
+        save_plot(Path('ER+BA') / f'{metric} {N}')
 
     # also plot standard deviation of degree assortativity
     k_ass_std_ER = df_ER['k_assortativity_sem'] * np.sqrt(n)
@@ -291,9 +291,7 @@ def plot_ER_and_BA(N, n):
         ylabel
     )
     # define filepath and save figure
-    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA'
-    os.makedirs(filename, exist_ok=True)
-    plt.savefig(f'{filename}/{'k_assortativity_std'} {N}')
+    save_plot(Path('ER+BA') / f'k_assortativity_std {N}')
 
 def plot_ER_and_BA_log(N, n):
     """
@@ -350,9 +348,7 @@ def plot_ER_and_BA_log(N, n):
         ax.set_yscale('log')
 
         # define filepath and save figure
-        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA/log'
-        os.makedirs(filename, exist_ok=True)
-        plt.savefig(f'{filename}/{metric} {N}')
+        save_plot(Path('ER+BA') / 'log' / f'{metric} {N}')
 
     # also plot difference between clustering coefficient and transitivity
     err_ER = np.sqrt(df_ER['avg_cc_sem']**2 + df_ER['transitivity_sem']**2)
@@ -374,9 +370,7 @@ def plot_ER_and_BA_log(N, n):
     ax.set_xscale('log')
     ax.set_yscale('log')
     # define filepath and save figure
-    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/ER+BA/log'
-    os.makedirs(filename, exist_ok=True)
-    plt.savefig(f'{filename}/{'cc_T_diff'} {N}')
+    save_plot(Path('ER+BA') / 'log' / f'cc_T_diff {N}')
 
 def plot_all_2d(model, N, n, K=None):
     """
@@ -432,24 +426,20 @@ def plot_all_2d(model, N, n, K=None):
         fig, ax = plot_heatmap(df['p'], df['q'], df[metric], xlabel, ylabel, clabel)
 
         # define filepath and save figure
-        filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
-        os.makedirs(filename, exist_ok=True)
         if model == 'DCSB':
-            plt.savefig(f'{filename}/{metric} {N} {K}')
+            save_plot(Path(model) / f'{metric} {N} {K}')
         elif model == 'SWSF':
-            plt.savefig(f'{filename}/{metric} {N}')
+            save_plot(Path(model) / f'{metric} {N}')
 
     # also plot standard deviation of degree assortativity
     k_ass_std = df['k_assortativity_sem'] * np.sqrt(n)
     clabel = r'standard deviation of $r$, $\sigma_r$'
     fig, ax = plot_heatmap(df['p'], df['q'], k_ass_std, xlabel, ylabel, clabel)
     # define filepath and save figure
-    filename = f'~/OneDrive - University of Edinburgh/MPhys/misinformation images/plots/{model}'
-    os.makedirs(filename, exist_ok=True)
     if model == 'DCSB':
-        plt.savefig(f'{filename}/k_ass_std {N} {K}')
+        save_plot(Path(model) / f'k_ass_std {N} {K}')
     elif model == 'SWSF':
-        plt.savefig(f'{filename}/k_ass_std {N}')
+        save_plot(Path(model) / f'k_ass_std {N}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
