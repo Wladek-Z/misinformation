@@ -35,16 +35,22 @@ class RDS():
 
         # track the fraction of nodes in each state over time
         self.state_fracs = np.zeros((t, 5))
-        self.state_fracs[0] = n / self.N
+        self.state_fracs[0] = np.array(n) / self.N
 
         # define possible states
         self.state_labels = ['S1', 'S2', 'S3', 'S4', 'S5']
 
         # populate the initial states of the nodes in the graph
-        self.node_states = np.empty(self.N, dtype='<U2')
+        self.node_states = {}
+        unassigned_nodes = list(self.G.nodes())
 
         for num, label in zip(n, self.state_labels):
-            self.node_states[np.random.choice(np.where(self.node_states == '')[0], num, replace=False)] = label
+            assigned_indices = np.random.choice(len(unassigned_nodes), num, replace=False)
+            assigned_nodes = [unassigned_nodes[index] for index in assigned_indices]
+            for node in assigned_nodes:
+                self.node_states[node] = label
+            assigned_nodes = set(assigned_nodes)
+            unassigned_nodes = [node for node in unassigned_nodes if node not in assigned_nodes]
 
     def run(self):
         """
@@ -55,7 +61,9 @@ class RDS():
             new_node_states = self.node_states.copy()
 
             # iterate over randomly selected nodes in the graph
-            for node in np.random.permutation(self.G.nodes()):
+            nodes = list(self.G.nodes())
+            for node_index in np.random.permutation(len(nodes)):
+                node = nodes[node_index]
                 # get the current state of the node
                 current_state = self.node_states[node]
 
@@ -76,12 +84,15 @@ class RDS():
             self.node_states = new_node_states
 
             # update the state fractions for this sweep
-            self.state_fracs[sweep] = [np.sum(self.node_states == label) / self.N for label in self.state_labels]
+            self.state_fracs[sweep] = [
+                sum(state == label for state in self.node_states.values()) / self.N
+                for label in self.state_labels
+            ]
 
             # check if there are zero spreaders remaining
-            if np.sum(self.node_states == 'S2') == 0:
-                # save the time step at which the simulation ended
-                self.end_time = sweep
+            if sum(state == 'S2' for state in self.node_states.values()) == 0:
+                # truncate the state_fracs array to the current sweep and break the simulation
+                self.state_fracs = self.state_fracs[:sweep + 1]
                 break
 
     def get_new_state(self, current_state, neighbour_counts):

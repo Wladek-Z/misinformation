@@ -8,11 +8,18 @@ MYLW=1.0 #line width
 from pathlib import Path
 
 STYLE_FILE = Path(__file__).with_name("shendrukGroupStyle.mplstyle")
-IMAGE_ROOT = Path.home() / "OneDrive - University of Edinburgh" / "MPhys" / "misinformation images" / "plots"
+IMAGE_ROOT = Path.home() / "OneDrive - University of Edinburgh" / "MPhys" / "misinformation images" / "graph plots"
 plt.style.use(str(STYLE_FILE))
 
 def save_plot(filename):
-    """Save a plot below the configured image directory."""
+    """
+    Save a plot below the configured image directory.
+    
+    Parameters
+    ----------
+    filename: str
+        the filename to save the plot as, relative to the image root directory
+    """
     output_path = IMAGE_ROOT / filename
     output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_path)
