@@ -1,7 +1,7 @@
 import networkx as nx
 import argparse
 import numpy as np
-#import graph_tool.all as gt
+import graph_tool.all as gt
 import os
 import random
 
@@ -140,7 +140,7 @@ def generate_swsf(N, m, mu):
 
     return G
 
-def generate_dcsbm_ba(N, K, m, nu):
+def generate_dcsbm_ba(N, K, m, nu, mini=False):
     """
     Generates a DCSBM graph with a Barabási-Albert degree sequence using graph-tool,
     then converts to a NetworkX graph. Also performs a rewiring algorithm to remove
@@ -149,13 +149,15 @@ def generate_dcsbm_ba(N, K, m, nu):
     Parameters
     ----------
     N: int
-        number of nodes.
+        number of nodes
     K: int
-        number of blocks/communities.
+        number of blocks/communities
     m: str
-        Barabási-Albert attachment parameter (average degree approx. 2m).
+        Barabasi-Albert attachment parameter
     nu: float
-        mixing parameter (fraction of inter-block edges).
+        mixing parameter
+    mini: bool, default=False
+        whether to generate mini graphs
         
     Returns
     -------
@@ -164,7 +166,10 @@ def generate_dcsbm_ba(N, K, m, nu):
         node attributes
     """
     # resolve filepath to corresponding BA network
-    f = f'graphs/pajek/BA/0/{N} {m}.net.gz'
+    if mini:
+        f = f'graphs/pajek/BA/mini/{N} {m}.net.gz'
+    else:
+        f = f'graphs/pajek/BA/0/{N} {m}.net.gz'
     # extract the Barabási-Albert degree sequence
     ba_graph = nx.Graph(nx.read_pajek(f))
     degs = np.array([d for _, d in ba_graph.degree()], dtype=np.int32)
@@ -215,7 +220,7 @@ def generate_dcsbm_ba(N, K, m, nu):
     
     return G
 
-def gen_graph_samples(N, p, n, model):
+def gen_graph_samples(N, p, n, model, mini=False):
     """
     Generate samples of a network model given an input parameter.
     
@@ -229,6 +234,8 @@ def gen_graph_samples(N, p, n, model):
             number of networks to produce for each parameters
         model: str
             network model to generate
+        mini: bool, default=False
+            whether to generate mini graphs
     """
     # generate the graph for each point in parameter space n times
     for i in range(n):
@@ -244,11 +251,11 @@ def gen_graph_samples(N, p, n, model):
             G = nx.random_regular_graph(int(p), N)
 
         # save to file
-        output = f'./graphs/pajek/{model}/{i}'
+        output = f'./graphs/pajek/{model}/{i if not mini else "mini"}'
         os.makedirs(output, exist_ok=True)
         nx.write_pajek(G, f'{output}/{N} {''.join(p.split('.'))}.net.gz')
 
-def gen_swsfm_samples(N, m, mu, n):
+def gen_swsfm_samples(N, m, mu, n, mini=False):
     """
     Generate samples of a SWSF model given 2 input parameters.
     
@@ -262,17 +269,19 @@ def gen_swsfm_samples(N, m, mu, n):
             second input parameter
         n: str
             number of networks to produce for each parameters
+        mini: bool, default=False
+            whether to generate mini graphs
     """
     # generate n graphs for each point in parameter space
     for i in range(n):
         # generate DCSBM network
         G = generate_swsf(N, int(m), float(mu))
         # save graph to file
-        output = f'./graphs/pajek/SWSF/{i}'
+        output = f'./graphs/pajek/SWSF/{i if not mini else "mini"}'
         os.makedirs(output, exist_ok=True)
         nx.write_pajek(G, f'{output}/{N} {m} {''.join(mu.split('.'))}.net.gz')
 
-def gen_dcsbm_samples(N, K, m, nu, n):
+def gen_dcsbm_samples(N, K, m, nu, n, mini=False):
     """
     Generate samples of a DCSB model given 2 input parameters.
     
@@ -288,13 +297,15 @@ def gen_dcsbm_samples(N, K, m, nu, n):
             second input parameter
         n: str
             number of networks to produce for each parameters
+        mini: bool, default=False
+            whether to generate mini graphs
     """
     # generate n graphs for each point in parameter space
     for i in range(n):
         # generate DCSBM network
-        G = generate_dcsbm_ba(N, K, m, float(nu))
+        G = generate_dcsbm_ba(N, K, m, float(nu), mini)
         # save graph to file
-        output = f'./graphs/pajek/DCSB/{i}'
+        output = f'./graphs/pajek/DCSB/{i if not mini else "mini"}'
         os.makedirs(output, exist_ok=True)
         nx.write_pajek(G, f'{output}/{N} {K} {m} {''.join(nu.split('.'))}.net.gz')
 
@@ -317,6 +328,7 @@ if __name__ == "__main__":
     parser.add_argument('-K', type=int, default=10, help='number of groups for DCSBM')
     parser.add_argument('-f', type=str, help='file containing graph parameter input')
     parser.add_argument('--gen', action='store_true', help='generate a graph')
+    parser.add_argument('--mini', action='store_true', help='generate mini graphs for visualisation')
     parser.add_argument('--samples', action='store_true', help='generate graph samples for given parameter point')
     parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB', 'SWSF', 'REG'], help='network model to generate')
     args = parser.parse_args()
@@ -328,8 +340,8 @@ if __name__ == "__main__":
             gen_model(args.N, args.p, args.m)
     elif args.samples:
         if args.m == 'DCSB':
-            gen_dcsbm_samples(args.N, args.K, args.p, args.q, args.n)
+            gen_dcsbm_samples(args.N, args.K, args.p, args.q, args.n, args.mini)
         elif args.m == 'SWSF':
-            gen_swsfm_samples(args.N, args.p, args.q, args.n)
+            gen_swsfm_samples(args.N, args.p, args.q, args.n, args.mini)
         else:
-            gen_graph_samples(args.N, args.p, args.n, args.m)
+            gen_graph_samples(args.N, args.p, args.n, args.m, args.mini)
