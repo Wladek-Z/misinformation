@@ -10,11 +10,11 @@
 
 N=5000
 
-x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/ER p 2points.txt")
+x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter files/REG d.txt")
 
 echo "Task $SLURM_ARRAY_TASK_ID: p=$x"
 
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate mphys
 
-python ./code/network_gen.py -N $N -p "$x" -n 10 -m ER --samples
+python ./code/network_gen.py -N $N -p "$x" -n 1 -m REG --samples

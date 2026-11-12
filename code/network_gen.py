@@ -25,28 +25,11 @@ def gen_model(N, p, model):
         p = int(p)
         g = nx.complete_graph(p)
         G = nx.barabasi_albert_graph(N, p, initial_graph=g)
+    elif model == 'REG':
+        G = nx.random_regular_graph(int(p), N)
 
     # save to file
     nx.write_pajek(G, f'./graphs/pajek/{model}/{N} {''.join(p.split('.'))}.net.gz')
-
-def gen_regular(N, d):
-    """
-    Generate a regular graph.
-
-    Parameters
-    ----------
-        N: int
-            network size
-        d: str
-            network degree
-    """
-    # generate regular graph
-    G = nx.random_regular_graph(int(d), N)
-
-    # save to file
-    output = f'./graphs/pajek/regular'
-    os.makedirs(output, exist_ok=True)
-    nx.write_pajek(G, f'{output}/{N} {d}.net.gz')
 
 def gen_model_2d(N, p, q, model, K=None):
     """
@@ -256,6 +239,9 @@ def gen_graph_samples(N, p, n, model):
             # generate BA network on initial complete graph
             g = nx.complete_graph(int(p))
             G = nx.barabasi_albert_graph(N, int(p), initial_graph=g)
+        elif model == 'REG':
+            # generate regular graph
+            G = nx.random_regular_graph(int(p), N)
 
         # save to file
         output = f'./graphs/pajek/{model}/{i}'
@@ -331,9 +317,8 @@ if __name__ == "__main__":
     parser.add_argument('-K', type=int, default=10, help='number of groups for DCSBM')
     parser.add_argument('-f', type=str, help='file containing graph parameter input')
     parser.add_argument('--gen', action='store_true', help='generate a graph')
-    parser.add_argument('--reg', action='store_true', help='generate a regular graph')
     parser.add_argument('--samples', action='store_true', help='generate graph samples for given parameter point')
-    parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB', 'SWSF'], help='network model to generate')
+    parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB', 'SWSF', 'REG'], help='network model to generate')
     args = parser.parse_args()
 
     if args.gen:
@@ -348,5 +333,3 @@ if __name__ == "__main__":
             gen_swsfm_samples(args.N, args.p, args.q, args.n)
         else:
             gen_graph_samples(args.N, args.p, args.n, args.m)
-    elif args.reg:
-        gen_regular(args.N, args.p)

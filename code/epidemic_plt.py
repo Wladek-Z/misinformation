@@ -81,6 +81,11 @@ def plot_state_fractions(model, N, stage, p, q=None, K=None, instance=0):
     # save the plot
     save_plot(output)
 
+    # print final fraction of rumour stiflers, maximal scale of spreaders, and time to extinction
+    print(f"Final fraction of rumour stiflers: R = {state_fracs[-1, 3]}")
+    print(f"Maximal scale of spreaders: max(S_2) = {np.max(state_fracs[:, 1])}")
+    print(f"Time to extinction: t_ext = {len(state_fracs)} sweeps")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
