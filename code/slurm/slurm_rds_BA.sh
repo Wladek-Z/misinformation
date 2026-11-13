@@ -8,7 +8,7 @@
 #######################################
 
 N=5000
-p=5
+p=25
 s=1
 
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
