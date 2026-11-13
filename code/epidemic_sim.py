@@ -65,7 +65,7 @@ def run_sim(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstances=1):
         # repeat simulation for each network instance
         for j in range(jnstances):
             # print status
-            print(f'Running network {i}, simulation {j}\n')
+            print(f'Running network {i}, simulation {j}')
             # write output path
             if model == 'ER' or model == 'BA' or model == 'REG':
                 output = f'epidemics/data/{model}/{i}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
