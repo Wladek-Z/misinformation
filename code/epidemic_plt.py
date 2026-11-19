@@ -128,10 +128,28 @@ def plot_state_fractions(model, N, stage, nS, nD, p, q=None, K=None, instance=0,
     # save the plot
     save_plot(output)
 
-    # print final fraction of rumour stiflers, maximal scale of spreaders, and time to extinction
+    # final fraction of rumour stiflers
     print(f"Final fraction of rumour stiflers: R = {state_fracs[-1, 3]}")
+
+    # maximal scale of spreaders
     print(f"Maximal scale of spreaders: max(S_2) = {np.max(state_fracs[:, 1])}")
+
+    # time to extinction
     print(f"Time to extinction: t_ext = {len(state_fracs)} sweeps")
+
+    # time to spreader peak
+    print(f"Time to Spreader peak: t_peak = {np.argmax(state_fracs[:, 1])} sweeps")
+
+    # inverse time for S_4 to overtake S_1
+    inv_tc = 1 / np.argmin(state_fracs[:, 3] > state_fracs[:, 0]) if np.any(state_fracs[:, 3] > state_fracs[:, 0]) else 0
+    print(f"Inverse crossover time (S_4 > S_1): 1/t_c = {inv_tc} sweeps^-1")
+
+    # maximum slope of S_4
+    print(f"Maximum slope of S_4: max(|dS_4/dt|) = {np.max(np.abs(np.diff(state_fracs[:, 3])))} sweeps^-1")
+
+    # maximum slope of S_2
+    print(f"Maximum slope of S_2: max(|dS_2/dt|) = {np.max(np.abs(np.diff(state_fracs[:, 1])))} sweeps^-1")
+
 
 def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jnstances=1):
     """
@@ -164,9 +182,12 @@ def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jn
     R_list = np.empty((instances, jnstances))
     max_S_list = np.empty((instances, jnstances))
     t_ext_list = np.empty((instances, jnstances))
+    t_peak_list = np.empty((instances, jnstances))
     R_sems = np.empty(instances)
     max_S_sems = np.empty(instances)
     t_ext_sems = np.empty(instances)
+    t_peak_sems = np.empty(instances)
+    
 
     # read in results for each instance of the network
     for i in range(instances):
@@ -179,11 +200,13 @@ def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jn
             R_list[i, j] = state_fracs[-1, 3]
             max_S_list[i, j] = np.max(state_fracs[:, 1])
             t_ext_list[i, j] = len(state_fracs)
+            t_peak_list[i, j] = np.argmax(state_fracs[:, 1])
 
         # compute standard error on the mean for each instance of the network
         R_sems[i] = np.std(R_list[i, :], ddof=1) / np.sqrt(jnstances)
         max_S_sems[i] = np.std(max_S_list[i, :], ddof=1) / np.sqrt(jnstances)
         t_ext_sems[i] = np.std(t_ext_list[i, :], ddof=1) / np.sqrt(jnstances)
+        t_peak_sems[i] = np.std(t_peak_list[i, :], ddof=1) / np.sqrt(jnstances)
 
     def plot(y, yerr, ylabel, filename):
         """
@@ -228,7 +251,7 @@ def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jn
     plot(R_list, R_sems, 'final scope of rumour, $R$', f'{f}/R.png')
     plot(max_S_list, max_S_sems, r'max$(S_2)$', f'{f}/max_S.png')
     plot(t_ext_list, t_ext_sems, r'time to extinction, $t_{\mathrm{ext}}$', f'{f}/t_ext.png')
-
+    plot(t_peak_list, t_peak_sems, r'time to Spreader peak, $t_{\mathrm{peak}}$', f'{f}/t_peak.png')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -1,5 +1,5 @@
 #!/bin/bash
 
-for x in $(seq 5 5 100); do
-    echo "$x" >> "parameter files/REG d.txt"
+for x in $(seq 0 1 999); do
+    echo "$x" >> "parameter_files/1000.txt"
 done
