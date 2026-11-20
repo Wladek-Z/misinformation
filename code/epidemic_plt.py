@@ -253,6 +253,100 @@ def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jn
     plot(t_ext_list, t_ext_sems, r'time to extinction, $t_{\mathrm{ext}}$', f'{f}/t_ext.png')
     plot(t_peak_list, t_peak_sems, r'time to Spreader peak, $t_{\mathrm{peak}}$', f'{f}/t_peak.png')
 
+def plot_variability_pdf(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jnstances=1):
+    """
+    Compare the variability in results across instances of the simulation as probability distributions.
+    
+    Parameters
+    ----------
+    model: str
+        network model used in the simulation
+    N: int
+        network size
+    stage: int
+        stage of the rumour life-cycle
+    nS: int
+        number of initial spreaders
+    nD: int
+        number of initial debunkers
+    p: str
+        first graph input parameter
+    q: str, optional
+        second graph input parameter
+    K: int, optional
+        number of groups for DCSBM
+    instances: int, default=1
+        number of instances of the network used
+    jnstances: int, default=1
+        number of instances of the simulation used
+    """
+    # initialise arrays to store results
+    R_list = np.empty((instances, jnstances))
+    max_S_list = np.empty((instances, jnstances))
+    t_ext_list = np.empty((instances, jnstances))
+    t_peak_list = np.empty((instances, jnstances))
+    inv_tc_list = np.empty((instances, jnstances))
+    max_dS4_list = np.empty((instances, jnstances))
+    max_dS1_list = np.empty((instances, jnstances))
+
+    # number of bins for histograms
+    NBINS = 25 
+
+    # read in results for each instance of the network
+    for i in range(instances):
+        # read in results for each instance of the simulation
+        for j in range(jnstances):
+            # load in simulation results
+            state_fracs = read_data(model, N, stage, nS, nD, p, q, K, i, j)
+
+            # store metrics of interest
+            R_list[i, j] = state_fracs[-1, 3]
+            max_S_list[i, j] = np.max(state_fracs[:, 1])
+            t_ext_list[i, j] = len(state_fracs)
+            t_peak_list[i, j] = np.argmax(state_fracs[:, 1])
+            inv_tc_list[i, j] = 1 / np.argmin(state_fracs[:, 3] > state_fracs[:, 0]) if np.any(state_fracs[:, 3] > state_fracs[:, 0]) else 0
+            max_dS4_list[i, j] = np.max(np.abs(np.diff(state_fracs[:, 3])))
+            max_dS1_list[i, j] = np.max(np.abs(np.diff(state_fracs[:, 0])))
+
+    def plot(Y, ylabel, filename):
+        """
+        Plot the simulation instance results histogram and the mean histogram for each network instance.
+        """
+        # initialise the figure
+        fig = plt.figure(figsize=(8, 6), layout='constrained')
+        plt.xlabel('probability density')
+        plt.ylabel(ylabel)
+        # create list of colours from cmap
+        colours = plt.cm.tab10.colors
+
+        # iterate over each network instance
+        for i in range(instances):
+            # plot overlapping, horizontally-aligned histograms of results for each network instance
+            plt.hist(Y[i, :], bins=NBINS, density=True, alpha=0.4, color=colours[i], orientation='horizontal')
+
+        # overlay the mean histogram across network instances
+        plt.hist(np.mean(Y, axis=0), bins=NBINS, density=True, color='red', orientation='horizontal', histtype='step', linestyle='--')
+
+        # save the plot
+        save_plot(filename)
+
+    # plot final fraction of rumour stiflers
+    if model == 'ER' or model == 'BA' or model == 'REG':
+        f = f'{model}/variability/PDF/{N} {''.join(p.split('.'))} stage{stage} nS{nS} nD{nD}'
+    elif model == 'SWSF':
+        f = f'{model}/variability/PDF/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{nS} nD{nD}'
+    elif model == 'DCSB':
+        f = f'{model}/variability/PDF/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{nS} nD{nD}'
+
+    # plot and save the results
+    plot(R_list, 'final scope of rumour, $R$', f'{f}/R.png')
+    plot(max_S_list, r'max$(S_2)$', f'{f}/max_S.png')
+    plot(t_ext_list, r'time to extinction, $t_{\mathrm{ext}}$', f'{f}/t_ext.png')
+    plot(t_peak_list, r'time to Spreader peak, $t_{\mathrm{peak}}$', f'{f}/t_peak.png')
+    plot(inv_tc_list, r'inverse crossover time, $1/t_c$', f'{f}/inv_tc.png')
+    plot(max_dS4_list, r'max$(|dS_4/dt|)$', f'{f}/max_dS4.png')
+    plot(max_dS1_list, r'max$(|dS_1/dt|)$', f'{f}/max_dS1.png')
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
