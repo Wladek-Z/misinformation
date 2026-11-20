@@ -209,7 +209,7 @@ def run_sim_randomspreader(n, t, stage, model, N, p, q=None, K=None, instance=0,
         rds.run()
 
         # save the results to a npz file
-        os.makedirs(f'epidemics/data/{model}/{randomspreader}/{instance}/{j}', exist_ok=True)
+        os.makedirs(f'epidemics/data/{model}/randomspreader/{instance}/{j}', exist_ok=True)
         np.savez_compressed(output, state_fracs=rds.state_fracs)
 
 
