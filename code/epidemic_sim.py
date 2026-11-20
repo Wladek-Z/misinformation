@@ -195,11 +195,11 @@ def run_sim_randomspreader(n, t, stage, model, N, p, q=None, K=None, instance=0,
         print(f'Running network {instance}, simulation {j}')
         # write output path
         if model == 'ER' or model == 'BA' or model == 'REG':
-            output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+            output = f'epidemics/data/{model}/randomspreader/{instance}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
         elif model == 'SWSF':
-            output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+            output = f'epidemics/data/{model}/randomspreader/{instance}/{j}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
         elif model == 'DCSB':
-            output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+            output = f'epidemics/data/{model}/randomspreader/{instance}/{j}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
 
         # set up RDS simulation object
         rds = RDS(G, beta, n, t)
