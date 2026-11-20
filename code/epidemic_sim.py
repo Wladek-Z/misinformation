@@ -10,9 +10,9 @@ beta1 = np.zeros(9)
 beta1[0:3] = [0.34 / k, 1 / 24, 0.0009 / k]
 beta2 = np.array([0.02 / k, 0.02, 0.0009 / k, 0.0009 / k, 0.15 / k, 0.04, 0.2 / k, 0.4 / k, 0.0009 / k])
 
-def run_sim(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstances=1, specific_j=False):
+def run_sim(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstances=1):
     """
-    Run the RDS simulation for a given network, stage, and initial state.
+    Run the RDS simulation for a given set of network instances, simulation instances, stage, and initial state.
     Save results to npz file.
     
     Parameters
@@ -37,13 +37,6 @@ def run_sim(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstances=1, 
         instances of the network to use
     jnstances: int, default=1
         instances of the simulation to run for each network
-    specific_j: bool, default=False
-        if True, only run the simulation for a specific jnstance
-
-    Returns
-    -------
-    state_fracs: ndarray
-        fraction of nodes in each state over time
     """
     # select parameters based on stage
     if stage == 1:
@@ -64,44 +57,162 @@ def run_sim(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstances=1, 
             f = f'graphs/pajek/{model}/{i}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
             G = nx.read_pajek(f)
 
-        if not specific_j:
-            # repeat simulation jnstances for each network instance
-            for j in range(jnstances):
-                # print status
-                print(f'Running network {i}, simulation {j}')
-                # write output path
-                if model == 'ER' or model == 'BA' or model == 'REG':
-                    output = f'epidemics/data/{model}/{i}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
-                elif model == 'SWSF':
-                    output = f'epidemics/data/{model}/{i}/{j}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
-                elif model == 'DCSB':
-                    output = f'epidemics/data/{model}/{i}/{j}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
-            
-                # run the RDS simulation
-                rds = RDS(G, beta, n, t)
-                rds.run()
-
-                # save the results to a npz file
-                os.makedirs(f'epidemics/data/{model}/{i}/{j}', exist_ok=True)
-                np.savez_compressed(output, state_fracs=rds.state_fracs)
-        else:
-            # run one simulation jnstance for each network instance
-            print(f'Running network {i}, simulation {jnstances}')
+        # repeat simulation jnstances for each network instance
+        for j in range(jnstances):
+            # print status
+            print(f'Running network {i}, simulation {j}')
             # write output path
             if model == 'ER' or model == 'BA' or model == 'REG':
-                output = f'epidemics/data/{model}/{i}/{jnstances}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+                output = f'epidemics/data/{model}/{i}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
             elif model == 'SWSF':
-                output = f'epidemics/data/{model}/{i}/{jnstances}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+                output = f'epidemics/data/{model}/{i}/{j}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
             elif model == 'DCSB':
-                output = f'epidemics/data/{model}/{i}/{jnstances}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
-
+                output = f'epidemics/data/{model}/{i}/{j}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+        
             # run the RDS simulation
             rds = RDS(G, beta, n, t)
             rds.run()
 
             # save the results to a npz file
-            os.makedirs(f'epidemics/data/{model}/{i}/{jnstances}', exist_ok=True)
+            os.makedirs(f'epidemics/data/{model}/{i}/{j}', exist_ok=True)
             np.savez_compressed(output, state_fracs=rds.state_fracs)
+
+def run_sim_jnstance(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstance=0):
+    """
+    Run the RDS simulation for a given set of network instances, specific simulation instance, stage, and initial state.
+    Save results to npz file.
+    
+    Parameters
+    ----------
+    n: ndarray
+        number of nodes in each state at t=0
+    t: int
+        number of sweeps over which to run the simulation
+    stage: int
+        stage of the rumour life-cycle
+    model: str
+        network model to use
+    N: int
+        network size
+    p: float
+        first parameter for the network model
+    q: float, optional
+        second parameter for the network model
+    K: int, optional
+        number of groups for the DCSB model
+    instances: int, default=1
+        instances of the network to use
+    jnstance: int, default=0
+        instance of the simulation to run for each network
+    """
+    # select parameters based on stage
+    if stage == 1:
+        beta = beta1
+    elif stage == 2:
+        beta = beta2
+
+    # simulate over each instance
+    for i in range(instances):
+        # print status
+        print(f'Running network {i}, simulation {jnstance}')
+        # read in the network
+        if model == 'ER' or model == 'BA' or model == 'REG':
+            f = f'graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))}.net.gz'
+            output = f'epidemics/data/{model}/{i}/{jnstance}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+            G = nx.read_pajek(f)
+        elif model == 'SWSF':
+            f = f'graphs/pajek/{model}/{i}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
+            output = f'epidemics/data/{model}/{i}/{jnstance}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+            G = nx.read_pajek(f)
+        elif model == 'DCSB':
+            f = f'graphs/pajek/{model}/{i}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
+            output = f'epidemics/data/{model}/{i}/{jnstance}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+            G = nx.read_pajek(f)
+
+        # run the RDS simulation
+        rds = RDS(G, beta, n, t)
+        rds.run()
+
+        # save the results to a npz file
+        os.makedirs(f'epidemics/data/{model}/{i}/{jnstance}', exist_ok=True)
+        np.savez_compressed(output, state_fracs=rds.state_fracs)
+
+def run_sim_randomspreader(n, t, stage, model, N, p, q=None, K=None, instance=0, jnstances=1):
+    """
+    Run the RDS simulation for a specific network instance, set of simulation instances, stage, and initial state, using the same (randomly chosen) initial Spreader node each time.
+    Save results to npz file.
+    
+    Parameters
+    ----------
+    n: ndarray
+        number of nodes in each state at t=0
+    t: int
+        number of sweeps over which to run the simulation
+    stage: int
+        stage of the rumour life-cycle
+    model: str
+        network model to use
+    N: int
+        network size
+    p: float
+        first parameter for the network model
+    q: float, optional
+        second parameter for the network model
+    K: int, optional
+        number of groups for the DCSB model
+    instance: int, default=0
+        instance of the network to use
+    jnstances: int, default=1
+        instances of the simulation to run for each network
+
+    Returns
+    -------
+    state_fracs: ndarray
+        fraction of nodes in each state over time
+    """
+    # select parameters based on stage
+    if stage == 1:
+        beta = beta1
+    elif stage == 2:
+        beta = beta2
+    
+    # read in the network
+    if model == 'ER' or model == 'BA' or model == 'REG':
+        f = f'graphs/pajek/{model}/{instance}/{N} {''.join(p.split('.'))}.net.gz'
+    elif model == 'SWSF':
+        f = f'graphs/pajek/{model}/{instance}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
+    elif model == 'DCSB':
+        f = f'graphs/pajek/{model}/{instance}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))}.net.gz'
+        
+    G = nx.read_pajek(f)
+    
+    # choose random node from the list of nodes in G
+    spreader_node = np.random.choice(list(G.nodes()))
+
+    # repeat simulation jnstances for specified network instance
+    for j in range(jnstances):
+        # print status
+        print(f'Running network {instance}, simulation {j}')
+        # write output path
+        if model == 'ER' or model == 'BA' or model == 'REG':
+            output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+        elif model == 'SWSF':
+            output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+        elif model == 'DCSB':
+            output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+
+        # set up RDS simulation object
+        rds = RDS(G, beta, n, t)
+        # reassign spreader node
+        rds.reassign_state('S2', spreader_node) 
+        # run simulation
+        rds.run()
+
+        # save the results to a npz file
+        os.makedirs(f'epidemics/data/{model}/{randomspreader}/{instance}/{j}', exist_ok=True)
+        np.savez_compressed(output, state_fracs=rds.state_fracs)
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -114,10 +225,17 @@ if __name__ == "__main__":
     parser.add_argument('-m', type=str, choices=['ER', 'BA', 'DCSB', 'SWSF', 'REG'], help='network model to simulate')
     parser.add_argument('-s', type=int, choices=[1, 2], help='stage of the rumour life-cycle')
     parser.add_argument('-i', type=int, default=1, help='number of network instances to run')
-    parser.add_argument('-j', type=int, default=1, help='number of simulation instances to run per network')
+    parser.add_argument('-j', type=int, default=1, help='number of simulation instances to run')
     parser.add_argument('--specj', action='store_true', help='run the simulation for a specific jnstance')
+    parser.add_argument('--randomspreader', action='store_true', help='run the simulations using the same random initial Spreader node each time')
     parser.add_argument('--run', action='store_true', help='run the simulation')
     args = parser.parse_args()
 
     if args.run:
-        run_sim(args.n, args.t, args.s, args.m, args.N, args.p, args.q, args.K, args.i, args.j, args.specj)
+        if args.specj:
+            run_sim_jnstance(args.n, args.t, args.s, args.m, args.N, args.p, args.q, args.K, args.i, args.j)
+        elif args.randomspreader:
+            run_sim_randomspreader(args.n, args.t, args.s, args.m, args.N, args.p, args.q, args.K, args.i, args.j)
+        else:
+            run_sim(args.n, args.t, args.s, args.m, args.N, args.p, args.q, args.K, args.i, args.j)
+    

@@ -14,4 +14,4 @@ s=1
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate mphys
 
-python ./code/epidemic_sim.py -N $N -p $p -m BA --run -s $s -i 10 -j 10 -n 4999 1 0 0 0
+python ./code/epidemic_sim.py -N $N -p $p -m BA --run --randomspreader -s $s -i 0 -j 20 -n 4999 1 0 0 0

@@ -1,0 +1,9 @@
+Running network 0, simulation 0
+Traceback (most recent call last):
+  File "/home/s2280450/misinformation/./code/epidemic_sim.py", line 238, in <module>
+    run_sim_randomspreader(args.n, args.t, args.s, args.m, args.N, args.p, args.q, args.K, args.i, args.j)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/s2280450/misinformation/./code/epidemic_sim.py", line 198, in run_sim_randomspreader
+    output = f'epidemics/data/{model}/{randomspreader}/{instance}/{j}/{N} {''.join(p.split('.'))} stage{stage} nS{n[1]} nD{n[2]}'
+                                       ^^^^^^^^^^^^^^
+NameError: name 'randomspreader' is not defined

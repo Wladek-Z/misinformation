@@ -149,3 +149,37 @@ class RDS():
             # S5 is an absorbing state
             return 'S5'
     
+    def reassign_state(self, state, node):
+        """
+        Reassign the initial single Spreader or Debunker to a specified node in the graph.
+
+        Parameters
+        ----------
+        state: str
+            the state to assign to the node ('S2' for Spreader, 'S3' for Debunker)
+        node: int
+            the node to which the state should be assigned
+        """
+        # check if the state is valid
+        if state not in ['S2', 'S3']:
+            raise ValueError("State must be 'S2' (Spreader) or 'S3' (Debunker).")
+        
+        # check if the node is valid
+        if node not in self.G.nodes():
+            raise ValueError(f"Node {node} is not in the graph.")
+        
+        # check if there is exactly one Spreader or Debunker in the graph
+        if np.sum([s == state for s in self.node_states.values()]) != 1:
+            raise ValueError(f"There must be exactly one node in state {state} to reassign.")
+
+        # get state of the specified node id
+        current_state = self.node_states[node]
+
+        # get id of the current Spreader or Debunker
+        current_node = next(node for node, s in self.node_states.items() if s == state)
+        
+        # reassign the state of the specified node
+        self.node_states[node] = state
+
+        # reassign the old node to the state of the swapped node
+        self.node_states[current_node] = current_state
