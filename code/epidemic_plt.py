@@ -44,8 +44,8 @@ def read_data(model, N, stage, nS, nD, p, q=None, K=None, instance=0, jnstance=0
     
     Returns
     -------
-    ndarray
-        fraction of nodes in each state over time
+    state_data: ndarray
+        number of nodes in each state over time
     """
     # resolve filepath to the simulation results
     if model == 'ER' or model == 'BA' or model == 'REG':
@@ -64,9 +64,17 @@ def read_data(model, N, stage, nS, nD, p, q=None, K=None, instance=0, jnstance=0
         else:
             f = f'epidemics/data/{model}/{instance}/{jnstance}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{nS} nD{nD}.npz'
 
-    # load the simulation results
-    data = np.load(f)
-    return data['state_fracs']
+    # Load legacy fractions and newer state counts in a consistent format.
+    with np.load(f, allow_pickle=False) as data:
+        key = 'state_nums' if 'state_nums' in data.files else 'state_fracs'
+        state_data = np.asarray(data[key], dtype=float).copy()
+
+    row_totals = state_data.sum(axis=1)
+    median_total = np.median(row_totals)
+    if np.isclose(median_total, 1.0, rtol=1e-3, atol=1e-3):
+        state_data *= N
+
+    return state_data
 
 def save_plot(filename):
     """
@@ -116,6 +124,10 @@ def calculate_all_metrics(state_nums):
     dict
         dictionary containing all metrics of interest
     """
+    network_size = np.sum(state_nums[0])
+    if network_size <= 0:
+        raise ValueError("The initial state counts must have a positive sum.")
+
     metrics = {
         "R": state_nums[-1, 3],
         "max_S": np.max(state_nums[:, 1]),
@@ -123,7 +135,7 @@ def calculate_all_metrics(state_nums):
         "t_peak": np.argmax(state_nums[:, 1]),
         "inv_tc": inverse_crossover_time(state_nums),
         "max_dS4": np.max(np.abs(np.diff(state_nums[:, 3]))),
-        "max_dS1": np.max(np.abs(np.diff(state_nums[:, 0]))),
+        "max_dS1": np.max(np.abs(np.diff(state_nums[:, 0])))
     }
     return metrics
 
@@ -254,13 +266,14 @@ def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jn
         # read in results for each instance of the simulation
         for j in range(jnstances):
             # load in simulation results
-            state_fracs = read_data(model, N, stage, nS, nD, p, q, K, i, j)
+            state_nums = read_data(model, N, stage, nS, nD, p, q, K, i, j)
+            metrics = calculate_all_metrics(state_nums)
 
             # store final scope of rumour, maximal scale of spreaders, and time to extinction
-            R_list[i, j] = state_fracs[-1, 3]
-            max_S_list[i, j] = np.max(state_fracs[:, 1])
-            t_ext_list[i, j] = len(state_fracs)
-            t_peak_list[i, j] = np.argmax(state_fracs[:, 1])
+            R_list[i, j] = metrics["R"]
+            max_S_list[i, j] = metrics["max_S"]
+            t_ext_list[i, j] = metrics["t_ext"]
+            t_peak_list[i, j] = metrics["t_peak"]
 
         # compute standard error on the mean for each instance of the network
         R_sems[i] = np.std(R_list[i, :], ddof=1) / np.sqrt(jnstances)
@@ -527,12 +540,14 @@ def plot_randomspreader_variability(model, N, stage, nS, nD, p, q=None, K=None, 
 
         # overlay the mean histogram across network instances
         mean_counts = np.mean(histogram_counts, axis=0)
-        plt.stairs(mean_counts, bin_edges, orientation='horizontal', color='red', linestyle='--', linewidth=2, label='all networks')
-        plt.axhline(np.mean(Y), color='red', linestyle='dotted', linewidth=2, label='mean of all networks')
+        plt.stairs(mean_counts, bin_edges, orientation='horizontal', color='red', linestyle='--', linewidth=2, label='network bin mean')
+
+        # show the median result across network instances
+        plt.axhline(np.median(Y), color='red', linestyle='dotted', linewidth=2, label='network median')
 
         # scatter plot results for fixed random spreader simulations
         plt.scatter(-np.ones(len(y)), y, color='black', marker='x', s=100, label='fixed spreader')
-        plt.axhline(np.mean(y), color='black', linestyle='dotted', linewidth=2, label='mean of fixed spreader')
+        plt.axhline(np.median(y), color='black', linestyle='dotted', linewidth=2, label='fixed spreader median')
 
         # add legend
         plt.legend()
@@ -555,6 +570,15 @@ def plot_randomspreader_variability(model, N, stage, nS, nD, p, q=None, K=None, 
     plot(inv_tc_list, inv_tc_list_rs, r'inverse crossover time, $1/t_c$', f'{f}/inv_tc.png')
     plot(max_dS4_list, max_dS4_list_rs, r'max$(|dS_4/dt|)$', f'{f}/max_dS4.png')
     plot(max_dS1_list, max_dS1_list_rs, r'max$(|dS_1/dt|)$', f'{f}/max_dS1.png')    
+
+    # print standard deviation of fixed random spreader results compared to the standard deviation of the results across network instances
+    print(f"Ratio of standard deviations for R: {np.std(R_list_rs, ddof=1) / np.std(R_list, ddof=1)}")
+    print(f"Ratio of standard deviations for max_S: {np.std(max_S_list_rs, ddof=1) / np.std(max_S_list, ddof=1)}")
+    print(f"Ratio of standard deviations for t_ext: {np.std(t_ext_list_rs, ddof=1) / np.std(t_ext_list, ddof=1)}")
+    print(f"Ratio of standard deviations for t_peak: {np.std(t_peak_list_rs, ddof=1) / np.std(t_peak_list, ddof=1)}")
+    print(f"Ratio of standard deviations for inv_tc: {np.std(inv_tc_list_rs, ddof=1) / np.std(inv_tc_list, ddof=1)}")
+    print(f"Ratio of standard deviations for max_dS4: {np.std(max_dS4_list_rs, ddof=1) / np.std(max_dS4_list, ddof=1)}")
+    print(f"Ratio of standard deviations for max_dS1: {np.std(max_dS1_list_rs, ddof=1) / np.std(max_dS1_list, ddof=1)}")
 
 def plot_results_1d_stage1(model, N, stage, nS, nD, p_file, instance=0, jnstances=1):
     """
