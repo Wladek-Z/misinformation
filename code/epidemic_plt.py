@@ -2,6 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import argparse
 import os
+import pandas as pd
 from io import BytesIO
 import shendrukGroupFormat as ed
 MYLW=1.0 #line width
@@ -80,35 +81,35 @@ def save_plot(filename):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_path, format='png')
 
-def inverse_crossover_time(state_fracs):
+def inverse_crossover_time(state_nums):
     """
     Return the inverse time at which S_4 overtakes S_1.
 
     Parameters
     ----------
-    state_fracs: ndarray
-        fraction of nodes in each state over time
+    state_nums: ndarray
+        number of nodes in each state over time
     
     Returns
     -------
     float
         inverse time at which S_4 overtakes S_1, or 0 if it never does
     """
-    crossing_times = np.flatnonzero(state_fracs[:, 3] > state_fracs[:, 0])
+    crossing_times = np.flatnonzero(state_nums[:, 3] > state_nums[:, 0])
     if crossing_times.size == 0:
         return 0.0
 
     crossover_time = crossing_times[0]
     return 1.0 / crossover_time if crossover_time != 0 else 0.0
 
-def calculate_all_metrics(state_fracs):
+def calculate_all_metrics(state_nums):
     """
-    Calculate all metrics of interest from the state fractions.
+    Calculate all metrics of interest from the state numbers.
 
     Parameters
     ----------
-    state_fracs: ndarray
-        fraction of nodes in each state over time
+    state_nums: ndarray
+        number of nodes in each state over time
     
     Returns
     -------
@@ -116,17 +117,17 @@ def calculate_all_metrics(state_fracs):
         dictionary containing all metrics of interest
     """
     metrics = {
-        "R": state_fracs[-1, 3],
-        "max_S": np.max(state_fracs[:, 1]),
-        "t_ext": len(state_fracs),
-        "t_peak": np.argmax(state_fracs[:, 1]),
-        "inv_tc": inverse_crossover_time(state_fracs),
-        "max_dS4": np.max(np.abs(np.diff(state_fracs[:, 3]))),
-        "max_dS1": np.max(np.abs(np.diff(state_fracs[:, 0]))),
+        "R": state_nums[-1, 3],
+        "max_S": np.max(state_nums[:, 1]),
+        "t_ext": len(state_nums),
+        "t_peak": np.argmax(state_nums[:, 1]),
+        "inv_tc": inverse_crossover_time(state_nums),
+        "max_dS4": np.max(np.abs(np.diff(state_nums[:, 3]))),
+        "max_dS1": np.max(np.abs(np.diff(state_nums[:, 0]))),
     }
     return metrics
 
-def plot_state_fractions(model, N, stage, nS, nD, p, q=None, K=None, instance=0, jnstance=0):
+def plot_infection_curves(model, N, stage, nS, nD, p, q=None, K=None, instance=0, jnstance=0):
     """
     Plot the fraction of nodes in each state over time for a given simulation.
     
@@ -162,50 +163,53 @@ def plot_state_fractions(model, N, stage, nS, nD, p, q=None, K=None, instance=0,
         output = f'{model}/fracs/{instance}/{jnstance}/{N} {K} {''.join(p.split('.'))} {''.join(q.split('.'))} stage{stage} nS{nS} nD{nD}.png'
 
     # load the simulation results
-    state_fracs = read_data(model, N, stage, nS, nD, p, q, K, instance, jnstance)
+    state_nums = read_data(model, N, stage, nS, nD, p, q, K, instance, jnstance)
 
     # get time
-    t = np.arange(state_fracs.shape[0])
+    t = np.arange(state_nums.shape[0])
 
-    # plot the state fractions over time
+    # plot the state numbers over time
     fig = plt.figure(figsize=(8, 6), layout='constrained')
     plt.xlabel('time (sweeps)')
-    plt.ylabel('fraction')
+    plt.ylabel('number of nodes')
 
     # initialise colours
     colours = [ed.saphire, ed.crimson, ed.capri, ed.amber, ed.plum]
 
-    # plot the state fractions over time
-    for i, state_frac in enumerate(state_fracs.T):
-        if np.sum(state_frac) > 0:
-            plt.plot(t, state_frac, label=f'$S_{i+1}$', color=colours[i])
+
+    # plot the state numbers over time
+    for i, state_num in enumerate(state_nums.T):
+        if np.sum(state_num) > 0:
+            plt.plot(t, state_num, label=f'$S_{i+1}$', color=colours[i])
 
     plt.legend()
 
     # save the plot
     save_plot(output)
 
+    # calculate all metrics
+    metrics = calculate_all_metrics(state_nums)
+
     # final fraction of rumour stiflers
-    print(f"Final fraction of rumour stiflers: R = {state_fracs[-1, 3]}")
+    print(f"Final fraction of rumour stiflers: R = {metrics['R']}")
 
     # maximal scale of spreaders
-    print(f"Maximal scale of spreaders: max(S_2) = {np.max(state_fracs[:, 1])}")
+    print(f"Maximal scale of spreaders: max(S_2) = {metrics['max_S']}")
 
     # time to extinction
-    print(f"Time to extinction: t_ext = {len(state_fracs)} sweeps")
+    print(f"Time to extinction: t_ext = {metrics['t_ext']} sweeps")
 
     # time to spreader peak
-    print(f"Time to Spreader peak: t_peak = {np.argmax(state_fracs[:, 1])} sweeps")
+    print(f"Time to Spreader peak: t_peak = {metrics['t_peak']} sweeps")
 
     # inverse time for S_4 to overtake S_1
-    inv_tc = inverse_crossover_time(state_fracs)
-    print(f"Inverse crossover time (S_4 > S_1): 1/t_c = {inv_tc} sweeps^-1")
+    print(f"Inverse crossover time (S_4 > S_1): 1/t_c = {metrics['inv_tc']} sweeps^-1")
 
     # maximum slope of S_4
-    print(f"Maximum slope of S_4: max(|dS_4/dt|) = {np.max(np.abs(np.diff(state_fracs[:, 3])))} sweeps^-1")
+    print(f"Maximum slope of S_4: max(|dS_4/dt|) = {metrics['max_dS4']} sweeps^-1")
 
     # maximum slope of S_2
-    print(f"Maximum slope of S_2: max(|dS_2/dt|) = {np.max(np.abs(np.diff(state_fracs[:, 1])))} sweeps^-1")
+    print(f"Maximum slope of S_2: max(|dS_2/dt|) = {metrics['max_dS2']} sweeps^-1")
 
 def plot_variability(model, N, stage, nS, nD, p, q=None, K=None, instances=1, jnstances=1):
     """
@@ -470,8 +474,8 @@ def plot_randomspreader_variability(model, N, stage, nS, nD, p, q=None, K=None, 
 
     # read in fixed-random-spreader results
     for j in range(j_rs):
-        state_fracs = read_data(model, N, stage, nS, nD, p, q, K, i_rs, j, initcon='randomspreader')
-        metrics = calculate_all_metrics(state_fracs)
+        state_nums = read_data(model, N, stage, nS, nD, p, q, K, i_rs, j, initcon='randomspreader')
+        metrics = calculate_all_metrics(state_nums)
         R_list_rs[j] = metrics["R"]
         max_S_list_rs[j] = metrics["max_S"]
         t_ext_list_rs[j] = metrics["t_ext"]
@@ -485,9 +489,9 @@ def plot_randomspreader_variability(model, N, stage, nS, nD, p, q=None, K=None, 
         # read in results for each instance of the simulation
         for j in range(jnstances):
             # load in simulation results
-            state_fracs = read_data(model, N, stage, nS, nD, p, q, K, i, j)
+            state_nums = read_data(model, N, stage, nS, nD, p, q, K, i, j)
             # calculate metrics
-            metrics = calculate_all_metrics(state_fracs)
+            metrics = calculate_all_metrics(state_nums)
             # store metrics of interest
             R_list[i, j] = metrics["R"]
             max_S_list[i, j] = metrics["max_S"]
@@ -552,7 +556,123 @@ def plot_randomspreader_variability(model, N, stage, nS, nD, p, q=None, K=None, 
     plot(max_dS4_list, max_dS4_list_rs, r'max$(|dS_4/dt|)$', f'{f}/max_dS4.png')
     plot(max_dS1_list, max_dS1_list_rs, r'max$(|dS_1/dt|)$', f'{f}/max_dS1.png')    
 
+def plot_results_1d_stage1(model, N, stage, nS, nD, p_file, instance=0, jnstances=1):
+    """
+    Plot the results of the stage 1 simulations as a function of average degree.
     
+    Parameters
+    ----------
+    model: str
+        network model used in the simulation
+    N: int
+        network size
+    stage: int
+        stage of the rumour life-cycle
+    nS: int
+        number of initial spreaders
+    nD: int
+        number of initial debunkers
+    p_file: list
+        file with list of graph input parameters
+    instance: int, default=0
+        instance of the network to use
+    jnstances: int, default=1
+        number of instances of the simulation to use
+    """
+    # read graph parameters
+    p_list = np.loadtxt(p_file, dtype=str)
+
+    # initialise arrays to store results
+    R_mean_list = np.empty(len(p_list))
+    R_sem_list = np.empty(len(p_list))
+    max_S_mean_list = np.empty(len(p_list))
+    max_S_sem_list = np.empty(len(p_list))
+    t_ext_mean_list = np.empty(len(p_list))
+    t_ext_sem_list = np.empty(len(p_list))
+    t_peak_mean_list = np.empty(len(p_list))
+    t_peak_sem_list = np.empty(len(p_list))
+    inv_tc_mean_list = np.empty(len(p_list))
+    inv_tc_sem_list = np.empty(len(p_list))
+    max_dS4_mean_list = np.empty(len(p_list))
+    max_dS4_sem_list = np.empty(len(p_list))
+    max_dS1_mean_list = np.empty(len(p_list))
+    max_dS1_sem_list = np.empty(len(p_list))
+
+    # initialise array to store average degree of each network
+    k_list = np.empty(len(p_list))
+
+    # iterate over graph parameters
+    for i, p, in enumerate(p_list):
+        # initialise arrays to store results for each instance of the simulation
+        R_list = np.empty(jnstances)
+        max_S_list = np.empty(jnstances)
+        t_ext_list = np.empty(jnstances)
+        t_peak_list = np.empty(jnstances)
+        inv_tc_list = np.empty(jnstances)
+        max_dS4_list = np.empty(jnstances)
+        max_dS1_list = np.empty(jnstances)
+        # obtain and add average degree of the network to the list
+        if model == 'REG':
+            k_list[i] = int(p)
+        else:
+            graph_file = f'graphs/data/{model}/uncombined/{N} {''.join(p.split('.'))}.txt'
+            # read only the row corresponding to the instance of the network
+            graph_data = pd.read_csv(graph_file, delimiter=',', usecols='avg_k', skiprows=instance, nrows=1)
+            k_list[i] = graph_data['avg_k'].values[0]
+        # read in results for each instance of the simulation
+        for j in range(jnstances):
+            # load in simulation results
+            state_fracs = read_data(model, N, stage, nS, nD, p, instance=instance, jnstance=j)
+            # calculate metrics
+            metrics = calculate_all_metrics(state_fracs)
+            # store metrics of interest
+            R_list[j] = metrics["R"]
+            max_S_list[j] = metrics["max_S"]
+            t_ext_list[j] = metrics["t_ext"]
+            t_peak_list[j] = metrics["t_peak"]
+            inv_tc_list[j] = metrics["inv_tc"]
+            max_dS4_list[j] = metrics["max_dS4"]
+            max_dS1_list[j] = metrics["max_dS1"]
+        # calculate mean and standard error on the mean for each metric
+        R_mean_list[i] = np.mean(R_list)
+        R_sem_list[i] = np.std(R_list, ddof=1) / np.sqrt(jnstances)
+        max_S_mean_list[i] = np.mean(max_S_list)
+        max_S_sem_list[i] = np.std(max_S_list, ddof=1) / np.sqrt(jnstances)
+        t_ext_mean_list[i] = np.mean(t_ext_list)
+        t_ext_sem_list[i] = np.std(t_ext_list, ddof=1) / np.sqrt(jnstances)
+        t_peak_mean_list[i] = np.mean(t_peak_list)
+        t_peak_sem_list[i] = np.std(t_peak_list, ddof=1) / np.sqrt(jnstances)
+        inv_tc_mean_list[i] = np.mean(inv_tc_list)
+        inv_tc_sem_list[i] = np.std(inv_tc_list, ddof=1) / np.sqrt(jnstances)
+        max_dS4_mean_list[i] = np.mean(max_dS4_list)
+        max_dS4_sem_list[i] = np.std(max_dS4_list, ddof=1) / np.sqrt(jnstances)
+        max_dS1_mean_list[i] = np.mean(max_dS1_list)
+        max_dS1_sem_list[i] = np.std(max_dS1_list, ddof=1) / np.sqrt(jnstances)
+
+    def plot(y, y_err, ylabel, filename):
+        """
+        Plot some epidemic metric y as a function of average degree with error bars y_err.
+        """
+        fig, ax = plt.subplots(1, 1, layout='constrained')
+
+        ax.errorbar(k_list, y, yerr=y_err, marker='o', linestyle='-', color=ed.saphire)
+        ax.set_xlabel(r'average degree, $\langle k \rangle$')
+        ax.set_ylabel(ylabel)
+
+        save_plot(filename)
+
+    # resolve filepath to figure output
+    f = f'{model}/graphparams/{N} {''.join(p.split('.'))} stage{stage} nS{nS} nD{nD}'
+
+    # plot and save the results
+    plot(R_mean_list, R_sem_list, 'final scope of rumour, $R$', f'{f}/R.png')
+    plot(max_S_mean_list, max_S_sem_list, r'max$(S_2)$', f'{f}/max_S.png')
+    plot(t_ext_mean_list, t_ext_sem_list, r'time to extinction, $t_{\mathrm{ext}}$', f'{f}/t_ext.png')
+    plot(t_peak_mean_list, t_peak_sem_list, r'time to Spreader peak, $t_{\mathrm{peak}}$', f'{f}/t_peak.png')
+    plot(inv_tc_mean_list, inv_tc_sem_list, r'inverse crossover time, $1/t_c$', f'{f}/inv_tc.png')
+    plot(max_dS4_mean_list, max_dS4_sem_list, r'max$(|dS_4/dt|)$', f'{f}/max_dS4.png')
+    plot(max_dS1_mean_list, max_dS1_sem_list, r'max$(|dS_1/dt|)$', f'{f}/max_dS1.png')
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -572,13 +692,17 @@ if __name__ == "__main__":
     parser.add_argument('--variability', action='store_true', help='plot variability of results for a given set of network instances')
     parser.add_argument('--varPDF', action='store_true', help='plot variability PDFs of results for a given set of network instances')
     parser.add_argument('--randomspreader', action='store_true', help='plot variability of results for fixed random spreader')
+    parser.add_argument('--oned', action='store_true', help='plot epidemic results for 1d graphs')
     args = parser.parse_args()
 
     if args.fracs:
-        plot_state_fractions(args.m, args.N, args.s, args.nS, args.nD, args.p, args.q, args.K, args.i)
+        plot_infection_curves(args.m, args.N, args.s, args.nS, args.nD, args.p, args.q, args.K, args.i)
     elif args.variability:
         plot_variability(args.m, args.N, args.s, args.nS, args.nD, args.p, args.q, args.K, args.i, args.j)
     elif args.varPDF:
         plot_variability_pdf(args.m, args.N, args.s, args.nS, args.nD, args.p, args.q, args.K, args.i, args.j)
     elif args.randomspreader:
         plot_randomspreader_variability(args.m, args.N, args.s, args.nS, args.nD, args.p, args.q, args.K, args.i, args.j, args.irs, args.jrs)
+    elif args.oned:
+        if args.s == 1:
+            plot_results_1d_stage1(args.m, args.N, args.s, args.nS, args.nD, args.p, args.i, args.j)

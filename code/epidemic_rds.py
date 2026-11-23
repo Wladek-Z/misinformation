@@ -33,9 +33,9 @@ class RDS():
         if np.sum(n) != self.N:
             raise ValueError("The sum of the initial state counts must equal the number of nodes in the graph.")
 
-        # track the fraction of nodes in each state over time
-        self.state_fracs = np.zeros((t, 5))
-        self.state_fracs[0] = np.array(n) / self.N
+        # track the number of nodes in each state over time
+        self.state_nums = np.zeros((t, 5))
+        self.state_nums[0] = np.array(n)
 
         # define possible states
         self.state_labels = ['S1', 'S2', 'S3', 'S4', 'S5']
@@ -83,16 +83,16 @@ class RDS():
             # update the node states for this sweep
             self.node_states = new_node_states
 
-            # update the state fractions for this sweep
-            self.state_fracs[sweep] = [
-                sum(state == label for state in self.node_states.values()) / self.N
+            # update the state numbers for this sweep
+            self.state_nums[sweep] = [
+                sum(state == label for state in self.node_states.values())
                 for label in self.state_labels
             ]
 
             # check if there are zero spreaders remaining
             if sum(state == 'S2' for state in self.node_states.values()) == 0:
-                # truncate the state_fracs array to the current sweep and break the simulation
-                self.state_fracs = self.state_fracs[:sweep + 1]
+                # truncate the state_nums array to the current sweep and break the simulation
+                self.state_nums = self.state_nums[:sweep + 1]
                 break
 
     def get_new_state(self, current_state, neighbour_counts):
