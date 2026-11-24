@@ -322,7 +322,7 @@ def graph_tool_to_networkx(g: gt.Graph) -> nx.Graph:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-N', type=int, default=5000, help='network size')
-    parser.add_argument('-n', type=int, default=10, help='number of graphs to produce per parameter point')
+    parser.add_argument('-n', type=int, default=1, help='number of graphs to produce per parameter point')
     parser.add_argument('-p', type=str, help='first graph input parameter')
     parser.add_argument('-q', type=str, help='second graph input parameter')
     parser.add_argument('-K', type=int, default=10, help='number of groups for DCSBM')

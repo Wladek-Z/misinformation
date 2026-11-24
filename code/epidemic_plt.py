@@ -580,9 +580,9 @@ def plot_randomspreader_variability(model, N, stage, nS, nD, p, q=None, K=None, 
     print(f"Ratio of standard deviations for max_dS4: {np.std(max_dS4_list_rs, ddof=1) / np.std(max_dS4_list, ddof=1)}")
     print(f"Ratio of standard deviations for max_dS1: {np.std(max_dS1_list_rs, ddof=1) / np.std(max_dS1_list, ddof=1)}")
 
-def plot_results_1d_stage1(model, N, stage, nS, nD, p_file, instance=0, jnstances=1):
+def plot_results_1d_stage1_mean(model, N, stage, nS, nD, p_file, instance=0, jnstances=1):
     """
-    Plot the results of the stage 1 simulations as a function of average degree.
+    Plot the results of the stage 1 simulations as a function of average degree using means and standard errors.
     
     Parameters
     ----------
@@ -640,9 +640,9 @@ def plot_results_1d_stage1(model, N, stage, nS, nD, p_file, instance=0, jnstance
             k_list[i] = int(p)
         else:
             graph_file = f'graphs/data/{model}/uncombined/{N} {''.join(p.split('.'))}.txt'
-            # read only the row corresponding to the instance of the network
-            graph_data = pd.read_csv(graph_file, delimiter=',', usecols='avg_k', skiprows=instance, nrows=1)
-            k_list[i] = graph_data['avg_k'].values[0]
+            # read the row corresponding to the instance of the network
+            graph_data = pd.read_csv(graph_file, delimiter=',', usecols=['avg_k'])
+            k_list[i] = graph_data.iloc[instance]['avg_k']
         # read in results for each instance of the simulation
         for j in range(jnstances):
             # load in simulation results
@@ -696,6 +696,104 @@ def plot_results_1d_stage1(model, N, stage, nS, nD, p_file, instance=0, jnstance
     plot(inv_tc_mean_list, inv_tc_sem_list, r'inverse crossover time, $1/t_c$', f'{f}/inv_tc.png')
     plot(max_dS4_mean_list, max_dS4_sem_list, r'max$(|dS_4/dt|)$', f'{f}/max_dS4.png')
     plot(max_dS1_mean_list, max_dS1_sem_list, r'max$(|dS_1/dt|)$', f'{f}/max_dS1.png')
+
+def plot_results_1d_stage1(model, N, stage, nS, nD, p_file, instance=0, jnstances=1):
+    """
+    Plot the results of the stage 1 simulations as a function of average degree using medians and box plots.
+    
+    Parameters
+    ----------
+    model: str
+        network model used in the simulation
+    N: int
+        network size
+    stage: int
+        stage of the rumour life-cycle
+    nS: int
+        number of initial spreaders
+    nD: int
+        number of initial debunkers
+    p_file: list
+        file with list of graph input parameters
+    instance: int, default=0
+        instance of the network to use
+    jnstances: int, default=1
+        number of instances of the simulation to use
+    """
+    # read graph parameters
+    p_list = np.loadtxt(p_file, dtype=str)
+
+    # initialise arrays to store results
+    R_list_list = np.empty((len(p_list), jnstances))
+    max_S_list_list = np.empty((len(p_list), jnstances))
+    t_ext_list_list = np.empty((len(p_list), jnstances))
+    t_peak_list_list = np.empty((len(p_list), jnstances))
+    inv_tc_list_list = np.empty((len(p_list), jnstances))
+    max_dS4_list_list = np.empty((len(p_list), jnstances))
+    max_dS1_list_list = np.empty((len(p_list), jnstances))
+
+    # initialise array to store average degree of each network
+    k_list = np.empty(len(p_list))
+
+    # iterate over graph parameters
+    for i, p, in enumerate(p_list):
+        # obtain and add average degree of the network to the list
+        if model == 'REG':
+            k_list[i] = int(p)
+        else:
+            # read the graph data for the specified instance
+            graph_file = f'graphs/data/{model}/uncombined/{N} {''.join(p.split('.'))}.txt'
+            # read the row corresponding to the instance of the network
+            graph_data = pd.read_csv(graph_file, delimiter=',', usecols=['avg_k'])
+            k_list[i] = graph_data.iloc[instance]['avg_k']
+        # read in results for each instance of the simulation
+        for j in range(jnstances):
+            # load in simulation results
+            state_nums = read_data(model, N, stage, nS, nD, p, instance=instance, jnstance=j)
+            # calculate metrics
+            metrics = calculate_all_metrics(state_nums)
+            # store metrics of interest
+            R_list_list[i, j] = metrics["R"]
+            max_S_list_list[i, j] = metrics["max_S"]
+            t_ext_list_list[i, j] = metrics["t_ext"]
+            t_peak_list_list[i, j] = metrics["t_peak"]
+            inv_tc_list_list[i, j] = metrics["inv_tc"]
+            max_dS4_list_list[i, j] = metrics["max_dS4"]
+            max_dS1_list_list[i, j] = metrics["max_dS1"]
+
+    def plot(y, ylabel, filename):
+        """
+        Plot some epidemic metric y as a function of average degree as a box plot.
+        """
+        fig, ax = plt.subplots(1, 1, layout='constrained')
+        # convert y to correct type for boxplotting
+        y = np.asarray(y, dtype=float)
+        datasets = [y[i, :] for i in range(len(k_list))]
+        ax.boxplot(datasets, positions=k_list, widths=3, whis=(0, 100), patch_artist=True, boxprops=dict(facecolor=ed.amber), medianprops=dict(color=ed.crimson, linewidth=2))
+        # overlay medians as a dotted line
+        medians = [np.median(y[i, :]) for i in range(len(k_list))]
+        ax.plot(k_list, medians, color=ed.crimson, linestyle='dotted', linewidth=2, label='median')
+        # keep the actual box positions, but label only k=0-100 in steps of 20
+        xticks = np.arange(0, 101, 20)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels([str(k) for k in xticks])
+        ax.set_xlabel(r'average degree, $\langle k \rangle$')
+        ax.set_ylabel(ylabel)
+        ax.legend()
+
+        save_plot(filename)
+
+    # resolve filepath to figure output
+    f = f'{model}/graphparams/{N} stage{stage} nS{nS} nD{nD}'
+
+    # plot and save the results
+    plot(R_list_list, 'final scope of rumour, $R$', f'{f}/R.png')
+    plot(max_S_list_list, 'max$(S_2)$', f'{f}/max_S.png')
+    plot(t_ext_list_list, r'time to extinction, $t_{\mathrm{ext}}$', f'{f}/t_ext.png')
+    plot(t_peak_list_list, r'time to Spreader peak, $t_{\mathrm{peak}}$', f'{f}/t_peak.png')
+    plot(inv_tc_list_list, 'inverse crossover time, $1/t_c$', f'{f}/inv_tc.png')
+    plot(max_dS4_list_list, 'max$(|dS_4/dt|)$', f'{f}/max_dS4.png')
+    plot(max_dS1_list_list, 'max$(|dS_1/dt|)$', f'{f}/max_dS1.png')
         
 
 if __name__ == "__main__":
