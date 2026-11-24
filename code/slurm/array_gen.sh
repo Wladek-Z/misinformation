@@ -8,7 +8,7 @@
 #
 #######################################
 
-N=3500
+N=8000
 
 x=$(sed -n -e "$SLURM_ARRAY_TASK_ID p" "./parameter_files/REG d.txt")
 

@@ -75,7 +75,7 @@ def run_sim(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstances=1):
 
             # save the results to a npz file
             os.makedirs(f'epidemics/data/{model}/{i}/{j}', exist_ok=True)
-            np.savez_compressed(output, state_fracs=rds.state_nums)
+            np.savez_compressed(output, state_nums=rds.state_nums)
 
 def run_sim_jnstance(n, t, stage, model, N, p, q=None, K=None, instances=1, jnstance=0):
     """
